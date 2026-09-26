@@ -25,7 +25,7 @@ The UX should remain simple even if the machinery behind it is not.
 
 ## Using it
 
-The extension is not on the Chrome Web Store yet, so for now it has to be loaded by hand (see [Development](#development)).
+The extension is not on the Chrome Web Store yet. To install it, download the zip from the [latest release](https://github.com/giacomomicoli/jah-extension/releases/latest) and unzip it, then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select the unzipped folder. To build it from source instead, see [Development](#development). What changed in each version is listed in [CHANGELOG.md](CHANGELOG.md).
 
 **Highlight.** Select some text and a small bar with five colors appears next to it; click a color to highlight the selection. You can also right-click the selection and choose *Highlight ▸ color*, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> to use the last color you picked (the shortcut can be changed at `chrome://extensions/shortcuts`).
 
@@ -270,6 +270,7 @@ Requirements: Chrome 123 or later, and Node 24.15+ (or 22.22+) for the test tool
 npm install
 npm run build      # production build into dist/
 npm run dev        # readable build with source maps, rebuilt on every change
+npm run package    # production build zipped into release/, ready for a GitHub release or the Web Store
 ```
 
 To load it, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick the `dist/` folder. After a rebuild, press the reload icon on the extension's card: tabs that are already open pick up the new version without being reloaded.

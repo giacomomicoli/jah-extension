@@ -58,6 +58,12 @@ The README explains the design; this section lists what is easy to get wrong whe
 - No runtime dependencies and no UI framework: TypeScript, esbuild and the DOM. Ask before adding either.
 - Chrome 123 is the minimum version (`static/manifest.json`).
 
+## Releases
+
+- Bump the version with `npm version <x.y.z> --no-git-tag-version` and set the same version in `static/manifest.json`; `npm run package` refuses to build when they differ.
+- Add a section to `CHANGELOG.md` (Keep a Changelog format), commit, and tag the commit `v<x.y.z>`.
+- `npm run package` writes `release/just-another-highlighter-<x.y.z>.zip`; attach it to the GitHub release, using the changelog section as release notes.
+
 ## Tests
 
 - Unit tests run on vitest with jsdom (text map, resolver, boot lifecycle) and fake-indexeddb (repository, import/export).

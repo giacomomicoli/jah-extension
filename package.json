@@ -1,6 +1,6 @@
 {
   "name": "just-another-highlighter",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Chrome extension: persistent text-anchored highlights and a lightweight knowledge manager.",
@@ -8,6 +8,7 @@
     "build": "node build.mjs",
     "build:dev": "node build.mjs --dev",
     "dev": "node build.mjs --watch",
+    "package": "bash scripts/package.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
