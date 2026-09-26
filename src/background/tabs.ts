@@ -1,7 +1,7 @@
 import { highlightStylesheet } from '../shared/colors';
 import { TAKEOVER_EVENT, type TabMessage } from '../shared/messages';
 import type { Page } from '../shared/types';
-import { isSameSite, normalizeUrl } from '../shared/url';
+import { isSameSiteUrl, normalizeUrl } from '../shared/url';
 
 const WEB_PAGES = ['http://*/*', 'https://*/*'];
 const inflightInjections = new Map<string, Promise<void>>();
@@ -119,8 +119,7 @@ export async function tabsShowing(page: Page): Promise<number[]> {
   return tabs.flatMap((tab) => {
     if (tab.id === undefined || !tab.url) return [];
     if (urls.has(normalizeUrl(tab.url) ?? '')) return [tab.id];
-    const sameSite = isSameSite(new URL(tab.url).hostname, page.hostname);
-    return known.get(tab.id) === page.id && sameSite ? [tab.id] : [];
+    return known.get(tab.id) === page.id && isSameSiteUrl(tab.url, page.canonicalUrl) ? [tab.id] : [];
   });
 }
 

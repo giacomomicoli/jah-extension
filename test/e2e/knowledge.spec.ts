@@ -108,6 +108,35 @@ test('edit a highlight from the page: color, note, group, delete', async ({ cont
   });
 });
 
+test('the note editor opens in the side panel of the window where you clicked', async ({ context, sw, site, extensionId }) => {
+  const page = await context.newPage();
+  await page.goto(site.url(HOSTS.hw, HW_PATH));
+  const tabId = await tabIdOf(sw, page);
+  await createHighlight(page, sw, WATT);
+
+  const here = await openPanel(context, extensionId);
+  const opened = context.waitForEvent('page');
+  await sw.evaluate((url) => chrome.windows.create({ url }), `chrome-extension://${extensionId}/sidepanel.html`);
+  const elsewhere = await opened;
+  await elsewhere.waitForLoadState();
+  const pageWindow = await sw.evaluate(async (id) => (await chrome.tabs.get(id)).windowId, tabId);
+  const windowOf = (panel: Page) => panel.evaluate(async () => (await chrome.windows.getCurrent()).id);
+  expect(await windowOf(here)).toBe(pageWindow);
+  expect(await windowOf(elsewhere)).not.toBe(pageWindow);
+
+  await page.bringToFront();
+  const point = await pointOf(page, 'resta sotto i 250');
+  await page.mouse.click(point.x, point.y);
+  await expect.poll(async () => Object.keys((await extensionState(sw, tabId)).editor)).toContain('note');
+  const target = center((await extensionState(sw, tabId)).editor.note);
+  await page.mouse.click(target.x, target.y);
+
+  const [{ id }] = (await database(sw)).highlights;
+  await expect(here.locator(`.card[data-id="${id}"] textarea`)).toBeVisible();
+  await elsewhere.waitForTimeout(500);
+  await expect(elsewhere.locator('.card textarea')).toHaveCount(0);
+});
+
 test('side panel: sites, pages, highlights, search and jump to page', async ({ context, sw, site, extensionId }) => {
   const hw = await context.newPage();
   await hw.goto(site.url(HOSTS.hw, HW_PATH));

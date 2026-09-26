@@ -114,7 +114,7 @@ test('a page on another subdomain cannot claim a page and receive its highlights
   expect(state.highlights).toEqual({});
 });
 
-test('pages neither receive nor reach highlights of other sites', async ({ context, sw, site }) => {
+test('pages neither receive nor reach highlights of other sites', async ({ context, sw, site, extensionId }) => {
   const plain = await context.newPage();
   await plain.goto(site.url(HOSTS.plain, PLAIN_PATH));
   const plainTab = await tabIdOf(sw, plain);
@@ -149,6 +149,18 @@ test('pages neither receive nor reach highlights of other sites', async ({ conte
     ).toMatchObject({ ok: false, error: 'Not allowed' });
     const [stored] = (await database(sw)).highlights;
     expect(stored.note).toBeUndefined();
+  });
+
+  await test.step('the side panel ignores focus requests sent from a tab', async () => {
+    const [{ id, pageId }] = (await database(sw)).highlights;
+    const panel = await context.newPage();
+    await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await expect(panel.locator('.tabs')).toBeVisible();
+    await sendFromTab(sw, plainTab, { type: 'panel:focus', highlightId: id, pageId, focus: 'note' });
+    await panel.waitForTimeout(500);
+    await expect(panel.locator('.card textarea')).toHaveCount(0);
+    await expect(panel.locator('.tabs')).toBeVisible();
+    await panel.close();
   });
 
   await test.step('knowledge-base requests are reserved to extension pages', async () => {

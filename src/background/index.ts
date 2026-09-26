@@ -19,7 +19,7 @@ import type {
   TabStatusEvent,
 } from '../shared/messages';
 import type { HighlightPatch, Page, PageIdentity, TextAnchor } from '../shared/types';
-import { acceptCanonical, isSameSite, normalizeUrl, siteOf } from '../shared/url';
+import { acceptCanonical, isSameSiteUrl, normalizeUrl, siteOf } from '../shared/url';
 import { createMenus, parseMenuCommand, setHighlightItemsVisible } from './menus';
 import * as repo from './repo';
 import {
@@ -98,14 +98,14 @@ function openSidePanel(tabId: number): Promise<boolean> {
   );
 }
 
-/** Asks the side panel to show a highlight with its note or group editor open. */
-async function focusInPanel(highlightId: string, focus: PanelFocus): Promise<void> {
+/** Asks the side panel of `windowId` to show a highlight with its note or group editor open. */
+async function focusInPanel(highlightId: string, focus: PanelFocus, windowId: number | undefined): Promise<void> {
   const highlight = await repo.getHighlight(highlightId);
   if (!highlight) throw new Error('This highlight no longer exists');
-  const request: PanelFocusRequest = { highlightId, pageId: highlight.pageId, focus, at: Date.now() };
+  const request: PanelFocusRequest = { highlightId, pageId: highlight.pageId, focus, windowId, at: Date.now() };
   // Stored for a panel that is still loading, sent for one that is already open.
   await chrome.storage.session.set({ panelFocus: request });
-  const event: PanelFocusEvent = { type: 'panel:focus', highlightId, pageId: highlight.pageId, focus };
+  const event: PanelFocusEvent = { type: 'panel:focus', highlightId, pageId: highlight.pageId, focus, windowId };
   chrome.runtime.sendMessage(event).catch(() => undefined);
 }
 
@@ -210,13 +210,7 @@ async function assertSameSite(highlightId: string, pageUrl: string | undefined):
   const highlight = await repo.getHighlight(highlightId);
   if (!highlight) throw new Error('This highlight no longer exists');
   const page = await repo.getPage(highlight.pageId);
-  let hostname = '';
-  try {
-    hostname = pageUrl ? new URL(pageUrl).hostname : '';
-  } catch {
-    // Not a URL: never the same site.
-  }
-  if (!page || !hostname || !isSameSite(hostname, page.hostname)) throw new Error('Not allowed');
+  if (!page || !pageUrl || !isSameSiteUrl(pageUrl, page.canonicalUrl)) throw new Error('Not allowed');
 }
 
 async function assertMayEdit(highlightId: string, sender: chrome.runtime.MessageSender): Promise<void> {
@@ -317,7 +311,7 @@ const handlers: { [T in RequestType]: Handler<T> } = {
     const opening = openSidePanel(requireTab(sender)); // first: keeps the user gesture
     const id = requireString(highlightId, 'highlight');
     await assertMayEdit(id, sender);
-    await focusInPanel(id, focus === 'group' ? 'group' : 'note');
+    await focusInPanel(id, focus === 'group' ? 'group' : 'note', sender.tab?.windowId);
     return { opened: await opening };
   },
 
@@ -483,7 +477,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     await assertSameSite(target.highlightId, tab?.url);
     if (command.kind === 'recolor') await updateHighlight(target.highlightId, { color: command.color });
     else if (command.kind === 'delete') await deleteHighlight(target.highlightId);
-    else if (command.kind === 'note') await focusInPanel(target.highlightId, 'note');
+    else if (command.kind === 'note') await focusInPanel(target.highlightId, 'note', tab?.windowId);
     else await sendToTab(tabId, { type: 'content:open-editor', highlightId: target.highlightId, panel: 'group' });
   })().catch((error: unknown) => console.warn('[JAH] context menu action failed', error));
 });

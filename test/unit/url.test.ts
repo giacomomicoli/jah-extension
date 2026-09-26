@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acceptCanonical, isSameSite, normalizeUrl, siteOf } from '../../src/shared/url';
+import { acceptCanonical, isSameSite, isSameSiteUrl, normalizeUrl, siteOf } from '../../src/shared/url';
 
 describe('normalizeUrl', () => {
   it('drops tracking parameters and fragments, keeping meaningful parameters', () => {
@@ -52,6 +52,12 @@ describe('sites', () => {
     expect(isSameSite('badexample.com', 'example.com')).toBe(false);
     expect(isSameSite('amp.dev', 'm.dev')).toBe(false);
   });
+
+  it('requires the same scheme for URLs', () => {
+    expect(isSameSiteUrl('https://m.example.com/a', 'https://www.example.com/b')).toBe(true);
+    expect(isSameSiteUrl('http://www.example.com/a', 'https://www.example.com/a')).toBe(false);
+    expect(isSameSiteUrl('not a url', 'https://www.example.com/a')).toBe(false);
+  });
 });
 
 describe('acceptCanonical', () => {
@@ -64,6 +70,10 @@ describe('acceptCanonical', () => {
 
   it('rejects cross-site canonicals', () => {
     expect(acceptCanonical('https://syndication.example.com/story', article)).toBe(false);
+  });
+
+  it('rejects a canonical that would let an http page claim an https page', () => {
+    expect(acceptCanonical('https://www.hwupgrade.it/a.html', 'http://www.hwupgrade.it/a.html')).toBe(false);
   });
 
   it('rejects a canonical pointing from another subdomain to the main site', () => {

@@ -59,6 +59,22 @@ export function isSameSite(a: string, b: string): boolean {
 }
 
 /**
+ * Same scheme and same site. A page served over plain http can be forged by anyone on the
+ * network, so it must never stand in for an https page of the same site.
+ */
+export function isSameSiteUrl(a: string, b: string): boolean {
+  let x: URL;
+  let y: URL;
+  try {
+    x = new URL(a);
+    y = new URL(b);
+  } catch {
+    return false;
+  }
+  return x.protocol === y.protocol && isSameSite(x.hostname, y.hostname);
+}
+
+/**
  * Validates a `<link rel="canonical">` target against the current location.
  * Rejects cross-site canonicals and the common "every page points at the homepage" misconfiguration.
  */
@@ -72,7 +88,7 @@ export function acceptCanonical(canonicalHref: string, locationHref: string): bo
     return false;
   }
   if (canonical.protocol !== 'http:' && canonical.protocol !== 'https:') return false;
-  if (!isSameSite(canonical.hostname, location.hostname)) return false;
+  if (!isSameSiteUrl(canonical.href, location.href)) return false;
   const canonicalPath = canonical.pathname.replace(/\/+$/, '');
   const locationPath = location.pathname.replace(/\/+$/, '');
   if (canonicalPath === '' && locationPath !== '') return false;

@@ -22,7 +22,7 @@ Everything stays in your browser, in storage that belongs to the extension on yo
 ## What websites can see
 
 - A website cannot read the extension's storage: your highlights, notes and groups, and your highlights on other websites, stay out of its reach.
-- While one of its pages is open, a website's scripts can see which passages of that page are highlighted. Highlights are drawn with the browser's CSS Custom Highlight API, which shares them with the page. The website does not see your notes or groups.
+- While one of its pages is open, a website's scripts can see which passages of that page are highlighted, and in which colors. Highlights are drawn with the browser's CSS Custom Highlight API, which shares them with the page. The website does not see your notes or groups.
 - Notes and new group names are always typed in the extension's side panel, which websites cannot observe. Text typed on a web page could be read by that page.
 - A website can tell that the extension is installed, for example when the color bar or a highlight appears.
 

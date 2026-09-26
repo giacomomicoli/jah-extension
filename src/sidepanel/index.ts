@@ -49,6 +49,10 @@ const fileInput = $<HTMLInputElement>('file');
 const toastElement = $<HTMLElement>('toast');
 const confirmBar = $<HTMLElement>('confirm');
 
+const windowReady = chrome.windows.getCurrent().then((window) => {
+  state.windowId = window.id;
+});
+
 const env: ViewEnv = {
   groups: () => state.groups,
   editors,
@@ -129,11 +133,17 @@ async function applyFocus({ highlightId, pageId, focus }: Omit<PanelFocusRequest
   view.querySelector(`.card[data-id="${CSS.escape(highlightId)}"]`)?.scrollIntoView({ block: 'center' });
 }
 
+/** Requests carry the window where the user clicked; panels of other windows ignore them. */
+function forThisWindow(request: { windowId?: number }): boolean {
+  return request.windowId === undefined || request.windowId === state.windowId;
+}
+
 /** A request stored while this panel was still opening. Returns whether one was applied. */
 async function applyStoredFocus(): Promise<boolean> {
+  await windowReady;
   const { panelFocus } = await chrome.storage.session.get('panelFocus');
   const stored = panelFocus as PanelFocusRequest | undefined;
-  if (!stored) return false;
+  if (!stored || !forThisWindow(stored)) return false;
   await chrome.storage.session.remove('panelFocus');
   if (Date.now() - stored.at > FOCUS_TTL) return false;
   await applyFocus(stored);
@@ -374,13 +384,17 @@ function isPanelFocus(message: unknown): message is PanelFocusEvent {
   return typeof message === 'object' && message !== null && (message as { type?: unknown }).type === 'panel:focus';
 }
 
-// Never answer: requests are for the service worker, this page only listens to broadcasts.
-chrome.runtime.onMessage.addListener((message: unknown) => {
+// Never answer: requests are for the service worker, this page only listens to its broadcasts.
+chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (sender.id !== chrome.runtime.id || sender.tab) return; // content scripts don't get a say here
   if (isKbChanged(message)) scheduleRefresh();
   else if (isTabStatus(message)) scheduleCurrent();
   else if (isPanelFocus(message)) {
-    void chrome.storage.session.remove('panelFocus');
-    void applyFocus(message);
+    void windowReady.then(() => {
+      if (!forThisWindow(message)) return;
+      void chrome.storage.session.remove('panelFocus');
+      void applyFocus(message);
+    });
   }
 });
 
@@ -391,9 +405,6 @@ chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
   if (tab.active && tab.windowId === state.windowId && (info.status === 'complete' || info.url)) scheduleCurrent();
 });
 
-void chrome.windows.getCurrent().then((window) => {
-  state.windowId = window.id;
-});
 void applyStoredFocus().then((applied) => {
   if (!applied) void render();
 });

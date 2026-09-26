@@ -2,6 +2,21 @@
 
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-09-26
+
+### Security
+
+- A page served over plain `http` can no longer claim the address of an `https` page on the same site through its canonical link. Anyone on the network can forge an `http` page, so it must not receive the highlights and notes of the `https` one.
+- The side panel ignores focus requests that don't come from the extension's service worker.
+
+### Fixed
+
+- With the side panel open in more than one window, the note or group editor now opens in the window where you clicked.
+
+### Changed
+
+- The privacy policy now says that a page can also see the colors of its highlights.
+
 ## [1.0.1] - 2026-09-26
 
 ### Security
@@ -37,5 +52,6 @@ First release.
 - A web page only receives the highlights of the page it shows, and can only change highlights of its own site. The service worker checks page addresses against the ones reported by Chrome.
 - Imported files are validated field by field, with size limits and `http(s)` addresses only.
 
+[1.0.2]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.2
 [1.0.1]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.1
 [1.0.0]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.0

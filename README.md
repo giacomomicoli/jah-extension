@@ -206,7 +206,7 @@ Group       a name, independent of colors and pages
 
 ### What websites can see
 
-A website can't read your highlights, notes or groups. While one of its pages is open, its scripts can see which passages of that page are highlighted, because the CSS Custom Highlight API shares highlights with the page, and it can tell that the extension is installed. The full privacy policy is in [PRIVACY.md](PRIVACY.md).
+A website can't read your highlights, notes or groups. While one of its pages is open, its scripts can see which passages of that page are highlighted and in which colors, because the CSS Custom Highlight API shares highlights with the page, and it can tell that the extension is installed. The full privacy policy is in [PRIVACY.md](PRIVACY.md).
 
 Web pages are treated as untrusted. The service worker checks that a page only asks about itself (using the address reported by Chrome, not the one claimed by the page), lets a page edit only the highlights of its own site, and sends a tab only the highlights of the page it is showing. Browsing, search, export and import are available only to the extension's own pages. Imported files are validated field by field, with `http(s)` addresses only and size limits.
 

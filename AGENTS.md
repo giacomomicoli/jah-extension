@@ -47,10 +47,11 @@ The README explains the design; this section lists what is easy to get wrong whe
 
 - Content scripts are untrusted input:
   - check claimed page identities against `sender.url` (`requireIdentity`);
-  - two hostnames are the same site only when they differ by a `www.`, `m.`, `amp.` or `mobile.` prefix (`isSameSite`); never widen this to any subdomain;
+  - two URLs are the same site only when their schemes match and their hostnames differ at most by a `www.`, `m.`, `amp.` or `mobile.` prefix (`isSameSiteUrl`); never widen this to any subdomain, and never let an http page stand in for an https one;
   - let them edit only highlights of their own site (`assertMayEdit`);
   - accept knowledge-base requests only from extension pages (`isAllowed`, `CONTENT_REQUESTS`);
   - send a page's data only to tabs showing that page (`tabsShowing`); only data-less changes may go to every tab.
+- The side panel ignores runtime messages sent from tabs: only the service worker may tell it what to show. Focus requests carry the window where the user clicked, and only that window's panel acts on them.
 - Validate everything that crosses a trust boundary (messages, import files) and keep sizes within `src/shared/limits.ts`.
 - Text coming from web pages (quotes, titles, notes) is rendered with `textContent`, never `innerHTML`.
 - Schema changes bump `DB_VERSION` and add a step to `upgrade()` in `src/background/db.ts`. Keep existing export files (`jah-export`, version 1) importable, or introduce a new version.

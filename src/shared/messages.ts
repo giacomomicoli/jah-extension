@@ -92,6 +92,8 @@ export interface PanelFocusRequest {
   highlightId: string;
   pageId: string;
   focus: PanelFocus;
+  /** Window where the user clicked; only the side panel of that window reacts. */
+  windowId?: number;
   at: number;
 }
 
