@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.zip
+
+# Test artifacts
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# Logs, editors and operating systems
+*.log
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+.idea/
+.vscode/
+
+# Local Claude Code session state
+.claude/settings.local.json
+.claude/*.lock

@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Just Another Highlighter",
+  "short_name": "JAH",
+  "description": "Highlight text on any page, find it still highlighted later, and browse your highlights by site, page and group.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "123",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Just Another Highlighter",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content-boot.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "permissions": ["storage", "unlimitedStorage", "sidePanel", "contextMenus", "scripting", "favicon"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "commands": {
+    "highlight-selection": {
+      "suggested_key": { "default": "Alt+Shift+H" },
+      "description": "Highlight the selected text"
+    },
+    "_execute_action": {
+      "description": "Open the highlights side panel"
+    }
+  }
+}
