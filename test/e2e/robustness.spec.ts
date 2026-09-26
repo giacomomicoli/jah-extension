@@ -9,7 +9,7 @@ import {
   tabIdOf,
   test,
 } from './fixtures';
-import { HOSTS, HW_PATH, PLAIN_PATH } from './site';
+import { COPY_PATH, HOSTS, HW_PATH, PLAIN_PATH } from './site';
 
 const WATT = 'sotto carico il sistema completo resta sotto i 250 watt';
 const PRICE = 'Il prezzo di listino parte da 329 euro';
@@ -97,6 +97,21 @@ test('late content is picked up promptly even while the page keeps changing', as
   expect((await extensionState(sw, tabId)).highlights['jah-yellow'] ?? []).toEqual([]);
   // The paragraph arrives at 11s and must not wait for the parked retry.
   await expect.poll(async () => (await extensionState(sw, tabId)).highlights['jah-yellow'], { timeout: 3500 }).toEqual([WATT]);
+});
+
+test('a page on another subdomain cannot claim a page and receive its highlights', async ({ context, sw, site }) => {
+  const article = await context.newPage();
+  await article.goto(site.url(HOSTS.hw, HW_PATH));
+  await createHighlight(article, sw, WATT);
+
+  const copy = await context.newPage();
+  await copy.goto(site.url(HOSTS.evil, COPY_PATH));
+  const tabId = await tabIdOf(sw, copy);
+  await expect.poll(async () => (await extensionState(sw, tabId)).boot).toBe(true);
+  await copy.waitForTimeout(500);
+  const state = await extensionState(sw, tabId);
+  expect(state.main).toBe(false);
+  expect(state.highlights).toEqual({});
 });
 
 test('pages neither receive nor reach highlights of other sites', async ({ context, sw, site }) => {

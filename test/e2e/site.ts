@@ -2,7 +2,12 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 /** Hostnames the browser maps to 127.0.0.1 (see fixtures.ts). */
-export const HOSTS = { hw: 'www.hwupgrade.it', mp: 'multiplayer.it', plain: 'plain.example' } as const;
+export const HOSTS = {
+  hw: 'www.hwupgrade.it',
+  mp: 'multiplayer.it',
+  plain: 'plain.example',
+  evil: 'evil.hwupgrade.it',
+} as const;
 
 export type ArticleVariant = 'original' | 'shifted' | 'removed' | 'hidden' | 'late';
 
@@ -17,6 +22,7 @@ export const HW_PATH = '/news/cpu/nuove-cpu-desktop_123.html';
 export const HW_HOME_PATH = '/';
 export const MP_PATH = '/notizie/gioco-di-ruolo-open-world.html';
 export const PLAIN_PATH = '/index.html';
+export const COPY_PATH = '/copia.html';
 
 export const HW_PARAGRAPHS = [
   'La nuova generazione di processori desktop arriva sul mercato con promesse ambiziose: più core, frequenze più alte e consumi sotto controllo.',
@@ -101,6 +107,12 @@ function hwHome(site: FixtureSite): string {
   );
 }
 
+/** Another subdomain copies the article and claims its canonical address. */
+function copiedArticle(site: FixtureSite): string {
+  const article = `<article><h1>Nuove CPU desktop</h1>${HW_PARAGRAPHS.map((text) => `<p>${text}</p>`).join('')}</article>`;
+  return layout('Copia', site.url(HOSTS.hw, HW_PATH), `<div class="layout"><main>${article}</main></div>`);
+}
+
 function mpArticle(site: FixtureSite): string {
   const canonical = site.url(HOSTS.mp, MP_PATH);
   const article = `<article><h1>Un nuovo gioco di ruolo open world arriva a novembre</h1>${MP_PARAGRAPHS.map(
@@ -132,6 +144,7 @@ export async function startSite(): Promise<FixtureSite> {
     else if (host === HOSTS.hw && path === HW_HOME_PATH) html = hwHome(site);
     else if (host === HOSTS.mp && path === MP_PATH) html = mpArticle(site);
     else if (host === HOSTS.plain) html = plainPage();
+    else if (host === HOSTS.evil && path === COPY_PATH) html = copiedArticle(site);
     if (!html) {
       response.writeHead(404, { 'content-type': 'text/plain' });
       response.end('not found');

@@ -5,10 +5,10 @@
  * service worker injects only when this page has highlights or the user creates one.
  */
 import type { ColorId } from '../shared/colors';
-import { request, type KbChange, type TabMessage } from '../shared/messages';
+import { TAKEOVER_EVENT, request, type KbChange, type TabMessage } from '../shared/messages';
 import type { PageIdentity } from '../shared/types';
 import { computeIdentity } from './identity';
-import { TAKEOVER_EVENT, jah, runtimeAlive, type BootApi, type MainApi } from './shared';
+import { jah, runtimeAlive, type BootApi, type MainApi } from './shared';
 import { SelectionToolbar } from './toolbar';
 
 bootstrap();
@@ -17,7 +17,9 @@ function bootstrap(): void {
   if (window.top !== window || !(document.documentElement instanceof HTMLElement) || !document.body) return;
 
   const shared = jah();
-  // A previous instance may be orphaned after an extension update; take over from it.
+  // A previous instance in this world (re-injected after an update) steps aside. Copies in another
+  // isolated world were already told to stop by the TAKEOVER_EVENT the service worker fires.
+  shared.boot?.dispose();
   shared.main?.dispose();
   shared.main = undefined;
 
@@ -31,15 +33,13 @@ function bootstrap(): void {
 
   const api: BootApi = {
     alive: () => runtimeAlive() && shared.boot === api,
+    dispose: () => teardown(),
     identity: () => identity,
     lookup,
     hideToolbar: () => toolbar.hide(),
   };
   shared.boot = api;
   shared.debug.toolbarButtons = () => toolbar.buttonRects();
-  // Scripts from a previous version of the extension may live in another isolated world and
-  // would otherwise only notice they are orphaned on their next event.
-  document.dispatchEvent(new CustomEvent(TAKEOVER_EVENT));
 
   function on<E extends Event>(
     target: EventTarget,

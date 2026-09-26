@@ -1,7 +1,7 @@
 import { COLORS, type ColorId } from '../shared/colors';
-import type { EditorPanel } from '../shared/messages';
-import type { Group, GroupSummary, Highlight, HighlightPatch } from '../shared/types';
-import { check, folder, pencil, trash } from '../shared/icons';
+import type { EditorPanel, PanelFocus } from '../shared/messages';
+import type { GroupSummary, Highlight, HighlightPatch } from '../shared/types';
+import { check, folder, pencil, plus, trash } from '../shared/icons';
 import { el, placeNear, svgIcon } from './ui/dom';
 import { UiHost } from './ui/host';
 import { EDITOR_CSS } from './ui/editor-styles';
@@ -13,10 +13,15 @@ export interface EditorDeps {
   update(id: string, patch: HighlightPatch): Promise<void>;
   remove(id: string): Promise<void>;
   groups(): Promise<GroupSummary[]>;
-  createGroup(name: string): Promise<Group>;
+  /** Continues in the side panel, where the page cannot observe what is typed. */
+  openInPanel(id: string, focus: PanelFocus): void;
 }
 
-/** Popover for acting on an existing highlight: color, note, group, delete. */
+/**
+ * Popover for acting on an existing highlight: color, group, delete. It deliberately has no
+ * text inputs: a page's scripts can read keystrokes typed into UI shown on top of it, so notes
+ * and new group names are written in the side panel.
+ */
 export class HighlightEditor {
   private readonly host = new UiHost(EDITOR_CSS);
   private panel: HTMLElement | null = null;
@@ -92,9 +97,10 @@ export class HighlightEditor {
       toast.remove();
       if (this.toastElement === toast) this.toastElement = null;
       if (!this.panel) this.host.unmount();
-    }, 2600);
+    }, 3000);
   }
 
+  /** Every control currently shown, by action (text inputs would appear as "textarea"/"input"). */
   buttonRects(): Record<string, DOMRect> {
     const rects: Record<string, DOMRect> = {};
     this.panel?.querySelectorAll<HTMLElement>('[data-action]').forEach((element) => {
@@ -125,16 +131,16 @@ export class HighlightEditor {
       return;
     }
     const panel = el('div', { class: 'panel', role: 'dialog', 'aria-label': 'Highlight' });
-    if (this.view === 'note') this.renderNote(panel, record);
-    else if (this.view === 'group') this.renderGroups(panel, record);
+    if (this.view === 'group') this.renderGroups(panel, record);
     else this.renderMain(panel, record);
+    // No text inputs here, so keeping focus (and the page selection) where it is costs nothing.
+    panel.addEventListener('mousedown', (event) => event.preventDefault());
 
     const root = this.host.mount();
     this.panel?.remove();
     this.panel = panel;
     root.append(panel);
     this.reposition();
-    panel.querySelector<HTMLElement>('[data-autofocus]')?.focus();
   }
 
   private renderMain(panel: HTMLElement, record: Highlight): void {
@@ -151,21 +157,21 @@ export class HighlightEditor {
       swatch.style.setProperty('--swatch', color.swatch);
       row.append(swatch);
     }
+    const noteLabel = record.note ? 'Edit the note in the side panel' : 'Add a note in the side panel';
     row.append(
       el('span', { class: 'sep' }),
-      iconButton('note', pencil, record.note ? 'Edit note' : 'Add note'),
+      iconButton('note', pencil, noteLabel),
       iconButton('group', folder, 'Group'),
       iconButton('delete', trash, 'Delete highlight'),
     );
     panel.append(row);
 
     if (record.note) {
-      panel.append(el('div', { class: 'note-preview', 'data-action': 'note', title: 'Edit note' }, record.note));
+      panel.append(el('div', { class: 'note-preview', 'data-action': 'note', title: noteLabel }, record.note));
     }
     const groupName = record.groupId ? this.groups?.find((item) => item.group.id === record.groupId)?.group.name : undefined;
     if (groupName) panel.append(el('div', { class: 'meta' }, `Group: ${groupName}`));
 
-    panel.addEventListener('mousedown', (event) => event.preventDefault());
     panel.addEventListener('click', (event) => {
       const target = (event.target as Element).closest<HTMLElement>('[data-action]');
       const action = target?.dataset.action;
@@ -173,42 +179,13 @@ export class HighlightEditor {
       if (action.startsWith('color:')) {
         void this.apply({ color: action.slice('color:'.length) as ColorId });
       } else if (action === 'note') {
-        this.switchTo('note');
+        this.continueInPanel('note');
       } else if (action === 'group') {
         this.switchTo('group');
       } else if (action === 'delete') {
         this.confirmDelete(target!);
       }
     });
-  }
-
-  private renderNote(panel: HTMLElement, record: Highlight): void {
-    const textarea = el('textarea', {
-      placeholder: 'Write a note…',
-      maxlength: 5000,
-      'aria-label': 'Note',
-      'data-autofocus': true,
-    });
-    textarea.value = record.note ?? '';
-    const save = () => void this.apply({ note: textarea.value }, 'main');
-    textarea.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-        event.preventDefault();
-        save();
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        this.switchTo('main');
-      }
-    });
-    const cancelButton = el('button', { class: 'btn', type: 'button', 'data-action': 'cancel' }, 'Cancel');
-    const saveButton = el('button', { class: 'btn primary', type: 'button', 'data-action': 'save' }, 'Save');
-    cancelButton.addEventListener('click', () => this.switchTo('main'));
-    saveButton.addEventListener('click', save);
-    panel.append(
-      textarea,
-      el('div', { class: 'actions' }, el('span', { class: 'hint' }, 'Ctrl+Enter to save'), cancelButton, saveButton),
-    );
-    queueMicrotask(() => textarea.setSelectionRange(textarea.value.length, textarea.value.length));
   }
 
   private renderGroups(panel: HTMLElement, record: Highlight): void {
@@ -228,39 +205,33 @@ export class HighlightEditor {
     if (this.groups) {
       for (const { group } of this.groups) addOption(group.id, group.name);
     } else {
-      options.append(el('div', { class: 'hint' }, 'Loading groups…'));
+      options.append(el('div', { class: 'meta' }, 'Loading groups…'));
     }
 
-    const input = el('input', {
-      type: 'text',
-      placeholder: 'New group…',
-      maxlength: 80,
-      'aria-label': 'New group name',
-      'data-autofocus': true,
-    });
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        this.switchTo('main');
-        return;
-      }
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      const name = input.value.trim();
-      if (!name) return;
-      void this.deps
-        .createGroup(name)
-        .then((group) => this.apply({ groupId: group.id }, 'main'))
-        .catch((error: unknown) => this.toast(errorMessage(error)));
-    });
+    const create = el(
+      'button',
+      { class: 'option', type: 'button', 'data-action': 'new-group', title: 'Name the new group in the side panel' },
+      el('span', { class: 'tick' }, svgIcon(plus)),
+      el('span', { class: 'label' }, 'New group…'),
+    );
+    create.addEventListener('click', () => this.continueInPanel('group'));
+    options.append(create);
+
     const back = el('button', { class: 'btn', type: 'button', 'data-action': 'back' }, 'Back');
     back.addEventListener('click', () => this.switchTo('main'));
-    panel.append(options, input, el('div', { class: 'actions' }, back));
+    panel.append(options, el('div', { class: 'actions' }, back));
   }
 
   private switchTo(view: EditorPanel): void {
     this.view = view;
     this.render();
+  }
+
+  private continueInPanel(focus: PanelFocus): void {
+    const id = this.id;
+    if (!id) return;
+    this.close();
+    this.deps.openInPanel(id, focus);
   }
 
   private async apply(patch: HighlightPatch, nextView?: EditorPanel): Promise<void> {

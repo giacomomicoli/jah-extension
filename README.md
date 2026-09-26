@@ -29,7 +29,7 @@ The extension is not on the Chrome Web Store yet. To install it, download the zi
 
 **Highlight.** Select some text and a small bar with five colors appears next to it; click a color to highlight the selection. You can also right-click the selection and choose *Highlight ▸ color*, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> to use the last color you picked (the shortcut can be changed at `chrome://extensions/shortcuts`).
 
-**Edit.** Click a highlight to change its color, add a note, move it to a group or delete it (deleting needs a second click). The same actions are available in the right-click menu of a highlight.
+**Edit.** Click a highlight to change its color, move it to a group or delete it (deleting needs a second click). To write a note, click the pencil: the side panel opens with the note ready to type. Notes and new group names are always typed in the side panel, because a website can read what is typed on its pages. The same actions are available in the right-click menu of a highlight.
 
 **Come back.** When you open the page again, your highlights are restored, even if the page changed a bit in the meantime. The extension icon shows how many highlights the page has, and turns orange when some of them can't be found anymore.
 
@@ -82,7 +82,7 @@ h4 → yellow
 
 A page with 100 yellow highlights needs 100 `Range` objects, one `Highlight` and one CSS rule, and no extra elements. The color bucket is only a rendering detail: every highlight is still a separate record, created by one action and recolored, annotated, grouped or deleted on its own.
 
-The only things the extension adds to a page are its temporary controls: the color bar, the highlight editor and short notifications. They live in an isolated shadow root that is attached while they are visible and removed afterwards, and they are never used to draw highlights.
+The only things the extension adds to a page are its temporary controls: the color bar, the highlight editor and short notifications. They live in an isolated shadow root that is attached while they are visible and removed afterwards, and they are never used to draw highlights. They have no text fields: anything you type goes into the side panel, where the website can't see it.
 
 ### 2. Text-centric first, DOM-assisted second
 
@@ -182,7 +182,7 @@ https://example.com/article?id=42#comments
 
 A page is identified by:
 
-1. its `<link rel="canonical">`, when it points to the same site (subdomains included) and doesn't point every article to the homepage, which is a common misconfiguration;
+1. its `<link rel="canonical">`, when it points to the same site (the same hostname, or one that only differs by a `www.`, `m.`, `amp.` or `mobile.` prefix) and doesn't point every article to the homepage, which is a common misconfiguration;
 2. otherwise the address in the location bar.
 
 In both cases credentials and tracking parameters (`utm_*`, `fbclid`, `gclid` and similar) are removed, the remaining parameters are sorted, and the fragment is dropped unless it looks like an app route (`#/…` or `#!…`). A page also keeps the addresses it was highlighted under, so it is still found if the site later changes its canonical link.
@@ -203,6 +203,10 @@ Group       a name, independent of colors and pages
 - The `unlimitedStorage` permission keeps Chrome from evicting the database when the disk gets full.
 - No page HTML, DOM snapshots or copies of articles are ever stored: only the highlighted words, a little context around them and some page metadata. When the last highlight of a page is deleted, the page record is deleted as well.
 - Small preferences, such as the last color you used, are kept in `chrome.storage`.
+
+### What websites can see
+
+A website can't read your highlights, notes or groups. While one of its pages is open, its scripts can see which passages of that page are highlighted, because the CSS Custom Highlight API shares highlights with the page, and it can tell that the extension is installed. The full privacy policy is in [PRIVACY.md](PRIVACY.md).
 
 Web pages are treated as untrusted. The service worker checks that a page only asks about itself (using the address reported by Chrome, not the one claimed by the page), lets a page edit only the highlights of its own site, and sends a tab only the highlights of the page it is showing. Browsing, search, export and import are available only to the extension's own pages. Imported files are validated field by field, with `http(s)` addresses only and size limits.
 

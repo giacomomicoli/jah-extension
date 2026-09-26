@@ -3,7 +3,15 @@
  * creates one. Owns the text map, the anchor resolver, the renderer and the editor.
  */
 import type { ColorId } from '../shared/colors';
-import { request, type EditorPanel, type KbChange, type TabMessage, type TabStatus } from '../shared/messages';
+import {
+  TAKEOVER_EVENT,
+  request,
+  type EditorPanel,
+  type KbChange,
+  type PanelFocus,
+  type TabMessage,
+  type TabStatus,
+} from '../shared/messages';
 import type { Highlight, HighlightPatch, Page, ResolutionStatus } from '../shared/types';
 import { MAX_QUOTE_LENGTH } from '../shared/limits';
 import { createAnchor, resolveTarget } from './anchor';
@@ -11,7 +19,7 @@ import { HighlightEditor } from './editor';
 import { Renderer } from './renderer';
 import { resolveAnchor } from './resolver';
 import { RetrySchedule } from './retry';
-import { TAKEOVER_EVENT, jah, runtimeAlive, type MainApi } from './shared';
+import { jah, runtimeAlive, type MainApi } from './shared';
 import { TextMap } from './textmap';
 
 const HEALTH_CHECK_DELAY = 1000;
@@ -51,7 +59,7 @@ function initialize(): void {
     update: updateHighlight,
     remove: removeHighlight,
     groups: async () => (await request('groups:list', {})).groups,
-    createGroup: async (name) => (await request('group:create', { name })).group,
+    openInPanel: (id, focus) => openInPanel(id, focus),
   });
 
   const api: MainApi = {
@@ -244,7 +252,7 @@ function initialize(): void {
     document.getSelection()?.removeAllRanges();
     startObserving();
     report();
-    if (options.openNote) editor.open(highlight.id, undefined, 'note');
+    if (options.openNote) openInPanel(highlight.id, 'note');
   }
 
   async function createFromSelection(color: ColorId): Promise<void> {
@@ -352,6 +360,19 @@ function initialize(): void {
         void jah().boot?.lookup();
         return;
     }
+  }
+
+  /**
+   * Shows a highlight's note or group editor in the side panel. Must run within a few seconds of
+   * the user's click: Chrome only opens the panel in response to a user gesture.
+   */
+  function openInPanel(id: string, focus: PanelFocus): void {
+    request('panel:open', { highlightId: id, focus }).then(
+      ({ opened }) => {
+        if (!opened) editor.toast('Click the extension icon to continue in the side panel');
+      },
+      (error: unknown) => editor.toast(error instanceof Error ? error.message : 'Something went wrong'),
+    );
   }
 
   // ── Native context menu support ──────────────────────────────────────────

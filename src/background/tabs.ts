@@ -1,5 +1,5 @@
 import { highlightStylesheet } from '../shared/colors';
-import type { TabMessage } from '../shared/messages';
+import { TAKEOVER_EVENT, type TabMessage } from '../shared/messages';
 import type { Page } from '../shared/types';
 import { isSameSite, normalizeUrl } from '../shared/url';
 
@@ -43,7 +43,15 @@ async function injectMain({ tabId, documentId }: DocumentTarget): Promise<void> 
 }
 
 export async function injectBoot(tabId: number): Promise<void> {
-  await chrome.scripting.executeScript({ target: { tabId, frameIds: [0] }, files: ['content-boot.js'] });
+  const target = { tabId, frameIds: [0] };
+  // Copies left behind by a previous version (possibly in another isolated world) stop now.
+  // Only this path fires the event, so pages cannot use it to detect the extension.
+  await chrome.scripting.executeScript({
+    target,
+    func: (name: string) => void document.dispatchEvent(new CustomEvent(name)),
+    args: [TAKEOVER_EVENT],
+  });
+  await chrome.scripting.executeScript({ target, files: ['content-boot.js'] });
 }
 
 /** Content scripts are not injected into tabs that were open before install/update. */

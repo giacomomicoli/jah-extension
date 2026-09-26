@@ -39,10 +39,18 @@ describe('sites', () => {
     expect(siteOf('forum.hwupgrade.it')).toBe('forum.hwupgrade.it');
   });
 
-  it('treats subdomains as the same site for canonical validation', () => {
+  it('treats www, m, amp and mobile variants as the same site', () => {
     expect(isSameSite('m.example.com', 'www.example.com')).toBe(true);
+    expect(isSameSite('amp.example.com', 'example.com')).toBe(true);
+    expect(isSameSite('www2.example.com', 'mobile.example.com')).toBe(true);
+  });
+
+  it('keeps other subdomains and look-alikes apart', () => {
+    expect(isSameSite('evil.example.com', 'www.example.com')).toBe(false);
+    expect(isSameSite('blog.example.com', 'example.com')).toBe(false);
     expect(isSameSite('example.com', 'example.org')).toBe(false);
     expect(isSameSite('badexample.com', 'example.com')).toBe(false);
+    expect(isSameSite('amp.dev', 'm.dev')).toBe(false);
   });
 });
 
@@ -56,6 +64,10 @@ describe('acceptCanonical', () => {
 
   it('rejects cross-site canonicals', () => {
     expect(acceptCanonical('https://syndication.example.com/story', article)).toBe(false);
+  });
+
+  it('rejects a canonical pointing from another subdomain to the main site', () => {
+    expect(acceptCanonical(article, 'https://evil.hwupgrade.it/copy.html')).toBe(false);
   });
 
   it('rejects a canonical pointing every article at the homepage', () => {

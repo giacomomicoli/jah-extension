@@ -16,6 +16,7 @@ export interface MainApi {
 /** API of the always-present boot script. */
 export interface BootApi {
   alive(): boolean;
+  dispose(): void;
   identity(): PageIdentity | null;
   lookup(): Promise<void>;
   hideToolbar(): void;
@@ -32,12 +33,6 @@ export interface JahGlobal {
   main?: MainApi;
   debug: DebugApi;
 }
-
-/**
- * DOM event a freshly injected boot script fires so that scripts left behind by a previous
- * version of the extension (possibly in another isolated world) shut down immediately.
- */
-export const TAKEOVER_EVENT = 'jah:takeover';
 
 /** Namespace shared by the boot and main scripts inside the extension's isolated world. */
 export function jah(): JahGlobal {

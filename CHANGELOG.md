@@ -2,6 +2,18 @@
 
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-09-26
+
+### Security
+
+- Notes and new group names are now typed in the side panel. Typed in the page, they could be read by the website's scripts. The pencil button on a highlight or in the color bar, and "Edit highlight note…" in the right-click menu, open the side panel with the editor ready.
+- A page on another subdomain (for example `evil.example.com`) can no longer claim the address of a page on `www.example.com` through its canonical link and receive that page's highlights. Two addresses count as the same site only when they differ by a `www.`, `m.`, `amp.` or `mobile.` prefix.
+- Pages can no longer detect the extension through the event it fires when it replaces an older copy of itself after an update.
+
+### Added
+
+- Privacy policy in [PRIVACY.md](PRIVACY.md).
+
 ## [1.0.0] - 2026-09-26
 
 First release.
@@ -25,4 +37,5 @@ First release.
 - A web page only receives the highlights of the page it shows, and can only change highlights of its own site. The service worker checks page addresses against the ones reported by Chrome.
 - Imported files are validated field by field, with size limits and `http(s)` addresses only.
 
+[1.0.1]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.1
 [1.0.0]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.0

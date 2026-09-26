@@ -56,6 +56,16 @@ describe('boot script', () => {
     await vi.waitFor(() => expect(sentTypes()).toEqual(['page:lookup']));
   });
 
+  it('does not announce itself to the page on a normal load', async () => {
+    const seen: string[] = [];
+    const listener = (event: Event) => seen.push(event.type);
+    document.addEventListener('jah:takeover', listener, true);
+    await loadBoot();
+    await vi.waitFor(() => expect(sentTypes()).toEqual(['page:lookup']));
+    document.removeEventListener('jah:takeover', listener, true);
+    expect(seen).toEqual([]);
+  });
+
   it('shuts down the previous instance as soon as a new one is injected', async () => {
     await loadBoot();
     const { removeListener } = chromeMock.runtime.onMessage;

@@ -148,7 +148,7 @@ function renderEditor(highlight: Highlight, state: EditorState, env: CardEnv, re
     container.append(row);
   } else if (state.kind === 'note') {
     const textarea = el('textarea', { rows: 4, maxlength: 5000, placeholder: 'Write a note…', 'aria-label': 'Note' });
-    textarea.value = state.draft ?? '';
+    textarea.value = state.draft ?? highlight.note ?? '';
     textarea.addEventListener('input', () => (state.draft = textarea.value));
     const save = () => {
       env.editors.delete(highlight.id);
@@ -202,6 +202,7 @@ function renderEditor(highlight: Highlight, state: EditorState, env: CardEnv, re
       );
     });
     container.append(list, input);
+    requestAnimationFrame(() => input.focus());
   }
   return container;
 }

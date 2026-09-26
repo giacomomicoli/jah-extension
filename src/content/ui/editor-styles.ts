@@ -13,18 +13,6 @@ export const EDITOR_CSS = `${TOOLBAR_CSS}
   cursor: text;
 }
 .meta { padding: 0 6px 2px; color: #a7a7ad; font-size: 12px; }
-textarea, input[type="text"] {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 6px;
-  background: #2a2a30;
-  color: inherit;
-  font: inherit;
-  outline: none;
-}
-textarea { min-width: 260px; min-height: 84px; resize: vertical; }
-textarea:focus, input[type="text"]:focus { border-color: #74c0fc; }
 .actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .btn {
   padding: 4px 10px;
@@ -38,7 +26,6 @@ textarea:focus, input[type="text"]:focus { border-color: #74c0fc; }
 .btn:hover { background: rgb(255 255 255 / 0.18); }
 .btn.primary { background: #1c7ed6; }
 .btn.primary:hover { background: #1971c2; }
-.hint { flex: 1; color: #a7a7ad; font-size: 11px; }
 .options { display: flex; flex-direction: column; min-width: 220px; max-height: 220px; overflow: auto; }
 .option {
   display: flex;

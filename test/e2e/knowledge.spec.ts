@@ -14,17 +14,28 @@ async function openPanel(context: import('@playwright/test').BrowserContext, ext
   return panel;
 }
 
-test('edit a highlight from the page: color, note, group, delete', async ({ context, sw, site }) => {
+test('edit a highlight from the page: color, note, group, delete', async ({ context, sw, site, extensionId }) => {
   const page = await context.newPage();
   await page.goto(site.url(HOSTS.hw, HW_PATH));
   const tabId = await tabIdOf(sw, page);
   await createHighlight(page, sw, WATT);
+  const NOTE = 'Consumi migliori della generazione precedente';
 
   const editor = async () => (await extensionState(sw, tabId)).editor;
   const click = async (action: string) => {
     await expect.poll(async () => Object.keys(await editor())).toContain(action);
     const target = center((await editor())[action]);
     await page.mouse.click(target.x, target.y);
+  };
+  const openEditor = async () => {
+    await page.bringToFront();
+    const point = await pointOf(page, 'resta sotto i 250');
+    await page.mouse.click(point.x, point.y);
+  };
+  const noTextFields = async () => {
+    const controls = Object.keys(await editor());
+    expect(controls).not.toContain('textarea');
+    expect(controls).not.toContain('input');
   };
 
   await test.step('hovering a highlight arms the native context menu', async () => {
@@ -36,33 +47,57 @@ test('edit a highlight from the page: color, note, group, delete', async ({ cont
   });
 
   await test.step('clicking a highlight opens its editor; recolor', async () => {
-    const point = await pointOf(page, 'resta sotto i 250');
-    await page.mouse.click(point.x, point.y);
+    await openEditor();
     await click('color:green');
     await expect.poll(async () => (await extensionState(sw, tabId)).highlights['jah-green']).toEqual([WATT]);
     expect((await extensionState(sw, tabId)).highlights['jah-yellow'] ?? []).toEqual([]);
     expect((await database(sw)).highlights[0].color).toBe('green');
+    await noTextFields();
   });
 
-  await test.step('add a note', async () => {
+  await test.step('notes are typed in the side panel, not in the page', async () => {
+    const panel = await openPanel(context, extensionId);
+    await openEditor();
     await click('note');
-    await expect.poll(async () => Object.keys(await editor())).toContain('textarea');
-    await page.keyboard.type('Consumi migliori della generazione precedente');
-    await page.keyboard.press('Control+Enter');
-    await expect.poll(async () => (await database(sw)).highlights[0].note).toBe('Consumi migliori della generazione precedente');
+    const [{ id }] = (await database(sw)).highlights;
+    const textarea = panel.locator(`.card[data-id="${id}"] textarea`);
+    await expect(textarea).toBeVisible();
+    await textarea.fill(NOTE);
+    await textarea.press('Control+Enter');
+    await expect.poll(async () => (await database(sw)).highlights[0].note).toBe(NOTE);
+    await panel.close();
   });
 
-  await test.step('create a group and move the highlight into it', async () => {
+  await test.step('a side panel opened later still shows the requested editor', async () => {
+    const [{ id, pageId }] = (await database(sw)).highlights;
+    await sw.evaluate(
+      (request) => chrome.storage.session.set({ panelFocus: { ...request, at: Date.now() } }),
+      { highlightId: id, pageId, focus: 'note' },
+    );
+    const panel = await openPanel(context, extensionId);
+    await expect(panel.locator(`.card[data-id="${id}"] textarea`)).toHaveValue(NOTE);
+    await panel.close();
+  });
+
+  await test.step('new groups are named in the side panel too', async () => {
+    const panel = await openPanel(context, extensionId);
+    await openEditor();
     await click('group');
-    await expect.poll(async () => Object.keys(await editor())).toContain('input');
-    await page.keyboard.type('Hardware');
-    await page.keyboard.press('Enter');
+    await noTextFields();
+    await click('new-group');
+    const [{ id }] = (await database(sw)).highlights;
+    const input = panel.locator(`.card[data-id="${id}"] .editor input`);
+    await expect(input).toBeVisible();
+    await input.fill('Hardware');
+    await input.press('Enter');
     await expect.poll(async () => (await database(sw)).groups.map((group) => group.name)).toEqual(['Hardware']);
     const { groups, highlights } = await database(sw);
     expect(highlights[0].groupId).toBe(groups[0].id);
+    await panel.close();
   });
 
   await test.step('delete needs a second click', async () => {
+    await openEditor();
     await click('delete');
     expect((await database(sw)).highlights).toHaveLength(1);
     await click('delete');

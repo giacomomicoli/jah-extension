@@ -41,6 +41,7 @@ export interface RequestMap {
   'group:create': { req: { name: string }; res: { group: Group } };
   'group:rename': { req: { id: string; name: string }; res: { group: Group } };
   'group:delete': { req: { id: string }; res: null };
+  'panel:open': { req: { highlightId: string; focus: PanelFocus }; res: { opened: boolean } };
 
   // From the side panel.
   'kb:sites': { req: {}; res: { sites: SiteSummary[] } };
@@ -77,7 +78,32 @@ export async function request<T extends RequestType>(
   return response.data;
 }
 
-export type EditorPanel = 'main' | 'note' | 'group';
+/** Views of the in-page highlight editor. It has no text inputs: see `PanelFocus`. */
+export type EditorPanel = 'main' | 'group';
+
+/**
+ * Text about a highlight (its note, a new group name) is typed in the side panel, never in the
+ * page, because a page's scripts can read keystrokes typed into extension UI shown on top of it.
+ */
+export type PanelFocus = 'note' | 'group';
+
+/** Asks the side panel to show a highlight with its note or group editor open. */
+export interface PanelFocusRequest {
+  highlightId: string;
+  pageId: string;
+  focus: PanelFocus;
+  at: number;
+}
+
+export interface PanelFocusEvent extends Omit<PanelFocusRequest, 'at'> {
+  type: 'panel:focus';
+}
+
+/**
+ * DOM event fired just before the service worker re-injects the boot script, so that copies left
+ * behind by a previous version of the extension (possibly in another isolated world) shut down.
+ */
+export const TAKEOVER_EVENT = 'jah:takeover';
 
 /** A change to the knowledge base, broadcast to tabs and to the side panel. */
 export type KbChange =

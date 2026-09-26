@@ -1,5 +1,4 @@
 import { COLORS, isColorId, type ColorId } from '../shared/colors';
-import type { EditorPanel } from '../shared/messages';
 
 export const MENU = {
   highlight: 'jah-highlight',
@@ -15,7 +14,8 @@ const HIGHLIGHT_ITEMS = [MENU.recolor, MENU.note, MENU.group, MENU.remove];
 export type MenuCommand =
   | { kind: 'highlight'; color: ColorId }
   | { kind: 'recolor'; color: ColorId }
-  | { kind: 'editor'; panel: EditorPanel }
+  | { kind: 'note' }
+  | { kind: 'group' }
   | { kind: 'delete' };
 
 export function createMenus(): void {
@@ -56,8 +56,8 @@ export function parseMenuCommand(menuItemId: string | number): MenuCommand | nul
   const [base, argument] = id.split(':');
   if (base === MENU.highlight && isColorId(argument)) return { kind: 'highlight', color: argument };
   if (base === MENU.recolor && isColorId(argument)) return { kind: 'recolor', color: argument };
-  if (id === MENU.note) return { kind: 'editor', panel: 'note' };
-  if (id === MENU.group) return { kind: 'editor', panel: 'group' };
+  if (id === MENU.note) return { kind: 'note' };
+  if (id === MENU.group) return { kind: 'group' };
   if (id === MENU.remove) return { kind: 'delete' };
   return null;
 }

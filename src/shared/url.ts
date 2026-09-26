@@ -40,11 +40,22 @@ export function siteOf(hostname: string): string {
   return hostname.toLowerCase().replace(/^www\d*\./, '');
 }
 
-/** True when both hostnames belong to the same site, allowing subdomains (m., amp., …). */
+/** Prefixes that mark a variant of a site rather than a different site. */
+const VARIANT_PREFIX = /^(?:www\d*|m|amp|mobile)\./;
+
+function withoutVariant(hostname: string): string {
+  const host = hostname.toLowerCase();
+  const stripped = host.replace(VARIANT_PREFIX, '');
+  // "m.dev" and "amp.dev" are sites of their own, not variants of "dev".
+  return stripped.includes('.') ? stripped : host;
+}
+
+/**
+ * True when two hostnames are variants of one site ("www.x.com", "m.x.com", "x.com"). Any other
+ * subdomain is a different site: a page on "blog.x.com" must never claim pages of "www.x.com".
+ */
 export function isSameSite(a: string, b: string): boolean {
-  const x = siteOf(a);
-  const y = siteOf(b);
-  return x === y || x.endsWith(`.${y}`) || y.endsWith(`.${x}`);
+  return withoutVariant(a) === withoutVariant(b);
 }
 
 /**

@@ -8,6 +8,9 @@ import type {
   AnyRequest,
   KbChange,
   KbChangedEvent,
+  PanelFocus,
+  PanelFocusEvent,
+  PanelFocusRequest,
   RequestOf,
   RequestType,
   ResponseOf,
@@ -80,6 +83,30 @@ async function updateHighlight(id: string, patch: HighlightPatch) {
 async function deleteHighlight(id: string): Promise<void> {
   const result = await repo.deleteHighlight(id);
   if (result) publish({ kind: 'highlight-delete', highlightId: id, pageId: result.highlight.pageId }, result.page);
+}
+
+// ── Side panel ─────────────────────────────────────────────────────────────
+
+/**
+ * Opens the side panel in the tab. Chrome only allows it in response to a user gesture, which
+ * survives only while the message or menu handler runs synchronously: call this before any await.
+ */
+function openSidePanel(tabId: number): Promise<boolean> {
+  return chrome.sidePanel.open({ tabId }).then(
+    () => true,
+    () => false,
+  );
+}
+
+/** Asks the side panel to show a highlight with its note or group editor open. */
+async function focusInPanel(highlightId: string, focus: PanelFocus): Promise<void> {
+  const highlight = await repo.getHighlight(highlightId);
+  if (!highlight) throw new Error('This highlight no longer exists');
+  const request: PanelFocusRequest = { highlightId, pageId: highlight.pageId, focus, at: Date.now() };
+  // Stored for a panel that is still loading, sent for one that is already open.
+  await chrome.storage.session.set({ panelFocus: request });
+  const event: PanelFocusEvent = { type: 'panel:focus', highlightId, pageId: highlight.pageId, focus };
+  chrome.runtime.sendMessage(event).catch(() => undefined);
 }
 
 // ── Preferences ────────────────────────────────────────────────────────────
@@ -286,6 +313,14 @@ const handlers: { [T in RequestType]: Handler<T> } = {
     return null;
   },
 
+  'panel:open': async ({ highlightId, focus }, sender) => {
+    const opening = openSidePanel(requireTab(sender)); // first: keeps the user gesture
+    const id = requireString(highlightId, 'highlight');
+    await assertMayEdit(id, sender);
+    await focusInPanel(id, focus === 'group' ? 'group' : 'note');
+    return { opened: await opening };
+  },
+
   'kb:sites': async () => ({ sites: await repo.listSites() }),
   'kb:pages': async ({ site }) => ({ pages: await repo.listPages(requireString(site, 'site')) }),
   'kb:page': async ({ pageId }) => repo.pageWithHighlights(requireString(pageId, 'page')),
@@ -331,6 +366,7 @@ const CONTENT_REQUESTS = new Set<RequestType>([
   'highlight:delete',
   'groups:list',
   'group:create',
+  'panel:open',
 ]);
 
 function isAllowed(type: RequestType, sender: chrome.runtime.MessageSender): boolean {
@@ -435,6 +471,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   const tabId = tab?.id;
   const command = parseMenuCommand(info.menuItemId);
   if (tabId === undefined || !command) return;
+  // Notes are written in the side panel; open it while the menu click still counts as a gesture.
+  if (command.kind === 'note') void openSidePanel(tabId);
   void (async () => {
     if (command.kind === 'highlight') {
       await highlightSelection(tabId, command.color);
@@ -445,7 +483,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     await assertSameSite(target.highlightId, tab?.url);
     if (command.kind === 'recolor') await updateHighlight(target.highlightId, { color: command.color });
     else if (command.kind === 'delete') await deleteHighlight(target.highlightId);
-    else await sendToTab(tabId, { type: 'content:open-editor', highlightId: target.highlightId, panel: command.panel });
+    else if (command.kind === 'note') await focusInPanel(target.highlightId, 'note');
+    else await sendToTab(tabId, { type: 'content:open-editor', highlightId: target.highlightId, panel: 'group' });
   })().catch((error: unknown) => console.warn('[JAH] context menu action failed', error));
 });
 

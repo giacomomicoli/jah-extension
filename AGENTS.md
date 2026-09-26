@@ -32,7 +32,8 @@ The README explains the design; this section lists what is easy to get wrong whe
 
 - Transient UI (selection toolbar, highlight editor, toasts) lives in the closed Shadow DOM host from `src/content/ui/host.ts`, attached to `<html>` only while visible. It is never used to render or mark highlights. This is the agreed reading of principle 1: do not treat the toolbar as a violation, and do not use it as a precedent for injecting anything else.
 - `CSS.highlights` is shared with every other script in the page, including copies of this extension orphaned by an update. Only remove highlight objects you created (see `release()` in `renderer.ts`).
-- Register content-script listeners through the local `on()` helper in `boot.ts` and `main.ts`: it disposes instances whose extension context is gone. A newly injected boot fires `jah:takeover` so orphans living in another isolated world stop immediately.
+- The in-page UI never contains text inputs: a page's scripts see keystrokes and input events even from a closed shadow root. Notes and new group names are typed in the side panel (`panel:open`). Chrome only opens the panel in response to a user gesture, so the service worker calls `chrome.sidePanel.open()` synchronously, before any `await`.
+- Register content-script listeners through the local `on()` helper in `boot.ts` and `main.ts`: it disposes instances whose extension context is gone. A new boot disposes a previous instance in the same world, and `injectBoot` fires `jah:takeover` before re-injecting so orphans in another isolated world stop. Boot never fires it on a normal load, or pages could use it to detect the extension.
 - Do nothing in a prerendered document until it is activated, and inject into the document that asked (`sender.documentId`), not just into the tab.
 - While a page has highlights, a single MutationObserver on `document.documentElement` marks the text map dirty and re-resolves missing highlights with backoff (`retry.ts`). Don't add fixed retry budgets or more observers.
 
@@ -46,12 +47,14 @@ The README explains the design; this section lists what is easy to get wrong whe
 
 - Content scripts are untrusted input:
   - check claimed page identities against `sender.url` (`requireIdentity`);
+  - two hostnames are the same site only when they differ by a `www.`, `m.`, `amp.` or `mobile.` prefix (`isSameSite`); never widen this to any subdomain;
   - let them edit only highlights of their own site (`assertMayEdit`);
   - accept knowledge-base requests only from extension pages (`isAllowed`, `CONTENT_REQUESTS`);
   - send a page's data only to tabs showing that page (`tabsShowing`); only data-less changes may go to every tab.
 - Validate everything that crosses a trust boundary (messages, import files) and keep sizes within `src/shared/limits.ts`.
 - Text coming from web pages (quotes, titles, notes) is rendered with `textContent`, never `innerHTML`.
 - Schema changes bump `DB_VERSION` and add a step to `upgrade()` in `src/background/db.ts`. Keep existing export files (`jah-export`, version 1) importable, or introduce a new version.
+- Keep `PRIVACY.md` accurate whenever what is stored, or what a page can observe, changes. It is the privacy policy published on the Chrome Web Store.
 
 ## Dependencies
 

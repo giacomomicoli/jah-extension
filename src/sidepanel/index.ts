@@ -1,6 +1,13 @@
 import { el } from '../shared/dom';
 import { icon } from '../shared/icons';
-import { request, type KbChangedEvent, type TabPage, type TabStatusEvent } from '../shared/messages';
+import {
+  request,
+  type KbChangedEvent,
+  type PanelFocusEvent,
+  type PanelFocusRequest,
+  type TabPage,
+  type TabStatusEvent,
+} from '../shared/messages';
 import type { GroupSummary } from '../shared/types';
 import { highlightCard, type EditorState } from './card';
 import { errorMessage, faviconUrl, plural } from './format';
@@ -104,6 +111,33 @@ async function render(): Promise<void> {
     button.setAttribute('aria-selected', String(button.dataset.tab === state.tab));
   }
   renderCurrent();
+}
+
+// ── Notes and group names typed here instead of in the page ────────────────
+
+const FOCUS_TTL = 30_000;
+
+/** Shows a highlight with its note or group editor open, as requested from a page or the menu. */
+async function applyFocus({ highlightId, pageId, focus }: Omit<PanelFocusRequest, 'at'>): Promise<void> {
+  editors.set(highlightId, { kind: focus });
+  if (state.route.name !== 'page' || state.route.pageId !== pageId) {
+    state.history.push(state.route);
+    state.route = { name: 'page', pageId };
+  }
+  clearSearch();
+  await render();
+  view.querySelector(`.card[data-id="${CSS.escape(highlightId)}"]`)?.scrollIntoView({ block: 'center' });
+}
+
+/** A request stored while this panel was still opening. Returns whether one was applied. */
+async function applyStoredFocus(): Promise<boolean> {
+  const { panelFocus } = await chrome.storage.session.get('panelFocus');
+  const stored = panelFocus as PanelFocusRequest | undefined;
+  if (!stored) return false;
+  await chrome.storage.session.remove('panelFocus');
+  if (Date.now() - stored.at > FOCUS_TTL) return false;
+  await applyFocus(stored);
+  return true;
 }
 
 // ── "This page" section ────────────────────────────────────────────────────
@@ -336,10 +370,18 @@ function isTabStatus(message: unknown): message is TabStatusEvent {
   return typeof message === 'object' && message !== null && (message as { type?: unknown }).type === 'tab:status';
 }
 
+function isPanelFocus(message: unknown): message is PanelFocusEvent {
+  return typeof message === 'object' && message !== null && (message as { type?: unknown }).type === 'panel:focus';
+}
+
 // Never answer: requests are for the service worker, this page only listens to broadcasts.
 chrome.runtime.onMessage.addListener((message: unknown) => {
   if (isKbChanged(message)) scheduleRefresh();
   else if (isTabStatus(message)) scheduleCurrent();
+  else if (isPanelFocus(message)) {
+    void chrome.storage.session.remove('panelFocus');
+    void applyFocus(message);
+  }
 });
 
 chrome.tabs.onActivated.addListener((info) => {
@@ -352,5 +394,7 @@ chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
 void chrome.windows.getCurrent().then((window) => {
   state.windowId = window.id;
 });
-void render();
+void applyStoredFocus().then((applied) => {
+  if (!applied) void render();
+});
 void refreshCurrent();
