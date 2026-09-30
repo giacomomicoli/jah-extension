@@ -2,7 +2,7 @@
 
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.0] - 2026-09-30
 
 ### Added
 
@@ -64,6 +64,7 @@ First release.
 - A web page only receives the highlights of the page it shows, and can only change highlights of its own site. The service worker checks page addresses against the ones reported by Chrome.
 - Imported files are validated field by field, with size limits and `http(s)` addresses only.
 
+[1.1.0]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.1.0
 [1.0.2]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.2
 [1.0.1]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.1
 [1.0.0]: https://github.com/giacomomicoli/jah-extension/releases/tag/v1.0.0
