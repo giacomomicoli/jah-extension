@@ -1,16 +1,23 @@
 // Bundles the extension into dist/ (load that folder as an unpacked extension).
-//   node build.mjs          production build (minified)
-//   node build.mjs --dev    development build (readable, inline source maps)
-//   node build.mjs --watch  development build, rebuilt on change
+//   node build.mjs                    production build (minified)
+//   node build.mjs --dev              development build (readable, inline source maps)
+//   node build.mjs --watch            development build, rebuilt on change
+//   node build.mjs --browser=firefox  Firefox build, into dist-firefox/ (combines with the above)
 // JAH_OUTDIR=/mnt/c/… writes the build elsewhere, e.g. to a Windows folder when working in WSL.
 import * as esbuild from 'esbuild';
-import { cp, mkdir, readdir, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { watch as watchFs } from 'node:fs';
 import path from 'node:path';
+import { manifestFor } from './scripts/manifest.ts';
 
 const watch = process.argv.includes('--watch');
 const dev = watch || process.argv.includes('--dev');
-const outdir = process.env.JAH_OUTDIR || 'dist';
+const browser = process.argv.find((arg) => arg.startsWith('--browser='))?.slice('--browser='.length) ?? 'chrome';
+if (browser !== 'chrome' && browser !== 'firefox') {
+  console.error(`Unknown browser: ${browser}`);
+  process.exit(1);
+}
+const outdir = process.env.JAH_OUTDIR || (browser === 'chrome' ? 'dist' : `dist-${browser}`);
 
 /** The output folder is wiped before building: refuse unless it is empty or a previous build. */
 async function assertSafeOutdir() {
@@ -25,7 +32,8 @@ async function assertSafeOutdir() {
 
 const common = {
   bundle: true,
-  target: 'chrome116',
+  target: ['chrome123', 'firefox140'],
+  define: { __BROWSER__: JSON.stringify(browser) },
   minify: !dev,
   sourcemap: dev ? 'inline' : false,
   legalComments: 'none',
@@ -34,7 +42,7 @@ const common = {
 };
 
 const configs = [
-  // Service worker: declared as an ES module in the manifest.
+  // Service worker (an event page in Firefox): declared as an ES module in the manifest.
   { ...common, format: 'esm', entryPoints: { background: 'src/background/index.ts' } },
   // Content scripts are classic scripts, so each one is a self-contained IIFE.
   // content-boot runs on every page and must stay tiny; content-main is injected lazily.
@@ -45,6 +53,9 @@ const configs = [
 
 async function copyStatic() {
   await cp('static', outdir, { recursive: true });
+  if (browser === 'chrome') return; // static/manifest.json is the Chrome manifest
+  const manifest = JSON.parse(await readFile('static/manifest.json', 'utf8'));
+  await writeFile(path.join(outdir, 'manifest.json'), `${JSON.stringify(manifestFor(browser, manifest), null, 2)}\n`);
 }
 
 await assertSafeOutdir();

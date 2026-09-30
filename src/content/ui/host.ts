@@ -31,9 +31,17 @@ export class UiHost {
         .map((rule) => `${rule} !important`)
         .join(';');
       const shadow = host.attachShadow({ mode: 'closed' });
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync(this.css);
-      shadow.adoptedStyleSheets = [sheet];
+      if (__BROWSER__ === 'firefox') {
+        // Content scripts can't set adoptedStyleSheets before Firefox 153 (bug 1751346), and
+        // Firefox exempts their <style> elements from the page's Content Security Policy.
+        const style = document.createElement('style');
+        style.textContent = this.css;
+        shadow.append(style);
+      } else {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(this.css);
+        shadow.adoptedStyleSheets = [sheet];
+      }
       for (const type of CONTAINED_EVENTS) shadow.addEventListener(type, (event) => event.stopPropagation());
       this.host = host;
       this.shadow = shadow;

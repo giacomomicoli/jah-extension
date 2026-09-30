@@ -3,6 +3,7 @@
  * panel talk to it through runtime messages; it injects content-main only where needed.
  */
 import { DEFAULT_COLOR, isColorId, type ColorId } from '../shared/colors';
+import { ext } from '../shared/ext';
 import { MAX_TITLE_LENGTH } from '../shared/limits';
 import type {
   AnyRequest,
@@ -21,6 +22,7 @@ import type {
 import type { HighlightPatch, Page, PageIdentity, TextAnchor } from '../shared/types';
 import { acceptCanonical, isSameSiteUrl, normalizeUrl, siteOf } from '../shared/url';
 import { createMenus, parseMenuCommand, setHighlightItemsVisible } from './menus';
+import { openPanel, openPanelOnActionClick } from './panel';
 import * as repo from './repo';
 import {
   activateTab,
@@ -43,19 +45,15 @@ import { exportAll, importAll, parseAnchor } from './transfer';
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
-chrome.runtime.onInstalled.addListener((details) => {
-  createMenus();
-  void enablePanelOnActionClick();
+ext.runtime.onInstalled.addListener((details) => {
+  createMenus().catch((error: unknown) => console.warn('[JAH] context menus', error));
   if (details.reason === 'install' || details.reason === 'update') void injectIntoOpenTabs();
 });
 
-chrome.runtime.onStartup.addListener(() => void enablePanelOnActionClick());
+openPanelOnActionClick();
 
-function enablePanelOnActionClick(): Promise<void> {
-  return chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((error: unknown) => console.warn('[JAH] side panel behavior', error));
-}
+// Firefox users can withdraw and restore access to websites: pages opened meanwhile have no boot script.
+if (__BROWSER__ === 'firefox') ext.permissions.onAdded.addListener(() => void injectIntoOpenTabs());
 
 // ── Change notifications ───────────────────────────────────────────────────
 
@@ -65,7 +63,7 @@ function enablePanelOnActionClick(): Promise<void> {
  */
 function publish(change: KbChange, page?: Page): void {
   const event: KbChangedEvent = { type: 'kb:changed', change };
-  chrome.runtime.sendMessage(event).catch(() => undefined); // no side panel open
+  ext.runtime.sendMessage(event).catch(() => undefined); // no side panel open
   const message = { type: 'content:kb-changed', change } as const;
   if (change.kind === 'groups' || change.kind === 'reset') {
     void broadcastToTabs(message);
@@ -87,37 +85,26 @@ async function deleteHighlight(id: string): Promise<void> {
 
 // ── Side panel ─────────────────────────────────────────────────────────────
 
-/**
- * Opens the side panel in the tab. Chrome only allows it in response to a user gesture, which
- * survives only while the message or menu handler runs synchronously: call this before any await.
- */
-function openSidePanel(tabId: number): Promise<boolean> {
-  return chrome.sidePanel.open({ tabId }).then(
-    () => true,
-    () => false,
-  );
-}
-
 /** Asks the side panel of `windowId` to show a highlight with its note or group editor open. */
 async function focusInPanel(highlightId: string, focus: PanelFocus, windowId: number | undefined): Promise<void> {
   const highlight = await repo.getHighlight(highlightId);
   if (!highlight) throw new Error('This highlight no longer exists');
   const request: PanelFocusRequest = { highlightId, pageId: highlight.pageId, focus, windowId, at: Date.now() };
   // Stored for a panel that is still loading, sent for one that is already open.
-  await chrome.storage.session.set({ panelFocus: request });
+  await ext.storage.session.set({ panelFocus: request });
   const event: PanelFocusEvent = { type: 'panel:focus', highlightId, pageId: highlight.pageId, focus, windowId };
-  chrome.runtime.sendMessage(event).catch(() => undefined);
+  ext.runtime.sendMessage(event).catch(() => undefined);
 }
 
 // ── Preferences ────────────────────────────────────────────────────────────
 
 async function lastColor(): Promise<ColorId> {
-  const { lastColor } = await chrome.storage.local.get('lastColor');
+  const { lastColor } = await ext.storage.local.get('lastColor');
   return isColorId(lastColor) ? lastColor : DEFAULT_COLOR;
 }
 
 async function rememberColor(color: ColorId): Promise<void> {
-  await chrome.storage.local.set({ lastColor: color });
+  await ext.storage.local.set({ lastColor: color });
 }
 
 // ── Context menu target ────────────────────────────────────────────────────
@@ -131,12 +118,12 @@ let contextTarget: ContextTarget | null = null;
 
 async function setContextTarget(target: ContextTarget | null): Promise<void> {
   contextTarget = target;
-  await Promise.all([setHighlightItemsVisible(target !== null), chrome.storage.session.set({ contextTarget: target })]);
+  await Promise.all([setHighlightItemsVisible(target !== null), ext.storage.session.set({ contextTarget: target })]);
 }
 
 async function currentContextTarget(): Promise<ContextTarget | null> {
   if (contextTarget) return contextTarget;
-  const { contextTarget: stored } = await chrome.storage.session.get('contextTarget');
+  const { contextTarget: stored } = await ext.storage.session.get('contextTarget');
   return (stored as ContextTarget | undefined) ?? null;
 }
 
@@ -200,9 +187,13 @@ function requireTab(sender: chrome.runtime.MessageSender): number {
   return tabId;
 }
 
+function requireTabWindow(sender: chrome.runtime.MessageSender): { id: number; windowId: number } {
+  return { id: requireTab(sender), windowId: sender.tab!.windowId };
+}
+
 /** Extension pages (side panel, or the same page opened in a tab) run on the extension origin. */
 function fromExtensionPage(sender: chrome.runtime.MessageSender): boolean {
-  return (sender.url ?? '').startsWith(chrome.runtime.getURL(''));
+  return (sender.url ?? '').startsWith(ext.runtime.getURL(''));
 }
 
 /** A web page may only act on highlights that belong to its own site. */
@@ -247,7 +238,7 @@ const handlers: { [T in RequestType]: Handler<T> } = {
     if (tabId === undefined) return null;
     await setBadge(tabId, clampInt(total, 0, 99_999), clampInt(unresolved, 0, 99_999));
     const event: TabStatusEvent = { type: 'tab:status', tabId };
-    chrome.runtime.sendMessage(event).catch(() => undefined);
+    ext.runtime.sendMessage(event).catch(() => undefined);
     return null;
   },
 
@@ -308,7 +299,7 @@ const handlers: { [T in RequestType]: Handler<T> } = {
   },
 
   'panel:open': async ({ highlightId, focus }, sender) => {
-    const opening = openSidePanel(requireTab(sender)); // first: keeps the user gesture
+    const opening = openPanel(requireTabWindow(sender)); // first: keeps the user gesture
     const id = requireString(highlightId, 'highlight');
     await assertMayEdit(id, sender);
     await focusInPanel(id, focus === 'group' ? 'group' : 'note', sender.tab?.windowId);
@@ -364,7 +355,7 @@ const CONTENT_REQUESTS = new Set<RequestType>([
 ]);
 
 function isAllowed(type: RequestType, sender: chrome.runtime.MessageSender): boolean {
-  if (sender.id !== chrome.runtime.id) return false;
+  if (sender.id !== ext.runtime.id) return false;
   // Content scripts report the URL of the web page they run in, never the extension origin.
   return fromExtensionPage(sender) || (sender.tab !== undefined && CONTENT_REQUESTS.has(type));
 }
@@ -378,7 +369,7 @@ function dispatch<T extends RequestType>(request: RequestOf<T>, sender: chrome.r
   return handler(request, sender);
 }
 
-chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+ext.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
   if (!isRequest(message)) return false;
   if (!isAllowed(message.type, sender)) {
     sendResponse({ ok: false, error: 'Not allowed' });
@@ -396,7 +387,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) =>
 async function tabPage(tabId: number): Promise<TabPage> {
   const empty: TabPage = { identity: null, page: null, highlights: [], statuses: null };
   if (tabId < 0) return empty;
-  const tab = await chrome.tabs.get(tabId).catch(() => undefined);
+  const tab = await ext.tabs.get(tabId).catch(() => undefined);
   if (!tab?.url || !/^https?:/.test(tab.url)) return empty;
   let claimed = await sendToTab<PageIdentity | null>(tabId, { type: 'content:identity' });
   if (!claimed) {
@@ -439,10 +430,10 @@ async function openHighlight(highlightId: string): Promise<void> {
     await activateTab(tab);
     if (await sendToTab<boolean>(tab.id, { type: 'content:focus', highlightId })) return;
     await setPendingFocus(tab.id, highlightId, page.id);
-    await chrome.tabs.reload(tab.id);
+    await ext.tabs.reload(tab.id);
     return;
   }
-  const created = await chrome.tabs.create({ url: page.url, active: true });
+  const created = await ext.tabs.create({ url: page.url, active: true });
   if (created.id !== undefined) await setPendingFocus(created.id, highlightId, page.id);
 }
 
@@ -451,7 +442,7 @@ async function openPage(pageId: string): Promise<void> {
   if (!page) throw new Error('This page no longer exists');
   const tab = await findTabForPage(page);
   if (tab) await activateTab(tab);
-  else await chrome.tabs.create({ url: page.url, active: true });
+  else await ext.tabs.create({ url: page.url, active: true });
 }
 
 // ── Context menu & keyboard shortcut ───────────────────────────────────────
@@ -461,12 +452,12 @@ async function highlightSelection(tabId: number, color: ColorId): Promise<void> 
   await sendToTab(tabId, { type: 'content:create-from-selection', color });
 }
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+ext.contextMenus.onClicked.addListener((info, tab) => {
   const tabId = tab?.id;
   const command = parseMenuCommand(info.menuItemId);
   if (tabId === undefined || !command) return;
   // Notes are written in the side panel; open it while the menu click still counts as a gesture.
-  if (command.kind === 'note') void openSidePanel(tabId);
+  if (command.kind === 'note' && tab) void openPanel({ id: tabId, windowId: tab.windowId });
   void (async () => {
     if (command.kind === 'highlight') {
       await highlightSelection(tabId, command.color);
@@ -482,7 +473,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   })().catch((error: unknown) => console.warn('[JAH] context menu action failed', error));
 });
 
-chrome.commands.onCommand.addListener((command, tab) => {
+ext.commands.onCommand.addListener((command, tab) => {
   if (command !== 'highlight-selection' || tab?.id === undefined) return;
   const tabId = tab.id;
   void lastColor()
@@ -491,11 +482,11 @@ chrome.commands.onCommand.addListener((command, tab) => {
 });
 
 // A right-click target never survives a tab switch.
-chrome.tabs.onActivated.addListener(() => {
+ext.tabs.onActivated.addListener(() => {
   if (contextTarget) void setContextTarget(null);
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => {
+ext.tabs.onRemoved.addListener((tabId) => {
   void clearPendingFocus(tabId).catch(() => undefined);
   void forgetTab(tabId).catch(() => undefined);
 });

@@ -25,15 +25,15 @@ The UX should remain simple even if the machinery behind it is not.
 
 ## Using it
 
-The extension is not on the Chrome Web Store yet. To install it, download the zip from the [latest release](https://github.com/giacomomicoli/jah-extension/releases/latest) and unzip it, then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select the unzipped folder. To build it from source instead, see [Development](#development). What changed in each version is listed in [CHANGELOG.md](CHANGELOG.md).
+The extension is not on the Chrome Web Store yet. To install it, download the Chrome zip from the [latest release](https://github.com/giacomomicoli/jah-extension/releases/latest) and unzip it, then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select the unzipped folder. It also runs in Firefox 140 or later: see [Development](#development) to try the Firefox build, or to build either one from source. What changed in each version is listed in [CHANGELOG.md](CHANGELOG.md).
 
-**Highlight.** Select some text and a small bar with five colors appears next to it; click a color to highlight the selection. You can also right-click the selection and choose *Highlight ▸ color*, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> to use the last color you picked (the shortcut can be changed at `chrome://extensions/shortcuts`).
+**Highlight.** Select some text and a small bar with five colors appears next to it; click a color to highlight the selection. You can also right-click the selection and choose *Highlight ▸ color*, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> to use the last color you picked (the shortcut can be changed at `chrome://extensions/shortcuts`, or in Firefox under *Manage Extension Shortcuts* in `about:addons`).
 
-**Edit.** Click a highlight to change its color, move it to a group or delete it (deleting needs a second click). To write a note, click the pencil: the side panel opens with the note ready to type. Notes and new group names are always typed in the side panel, because a website can read what is typed on its pages. The same actions are available in the right-click menu of a highlight.
+**Edit.** Click a highlight to change its color, move it to a group or delete it (deleting needs a second click). To write a note, click the pencil: the side panel opens with the note ready to type. Firefox opens its sidebar only from the extension's own button, shortcut and right-click entries, so there the note is ready once you open the sidebar. Notes and new group names are always typed in the side panel, because a website can read what is typed on its pages. The same actions are available in the right-click menu of a highlight.
 
 **Come back.** When you open the page again, your highlights are restored, even if the page changed a bit in the meantime. The extension icon shows how many highlights the page has, and turns orange when some of them can't be found anymore.
 
-**Browse and search.** Click the extension icon to open the side panel:
+**Browse and search.** Click the extension icon to open the side panel (the sidebar in Firefox):
 
 - **This page**: the highlights of the current tab, with a warning next to the ones that couldn't be found;
 - **Sites**: the sites you highlighted something on; open one to see its pages, then a page to see its highlights;
@@ -200,15 +200,15 @@ Group       a name, independent of colors and pages
 ```
 
 - The records live in an IndexedDB database owned by the extension's service worker; content scripts and the side panel only reach it through extension messages. Pages are indexed by canonical URL, by every known URL, by site and by update time; highlights by page, group, creation and update time.
-- The `unlimitedStorage` permission keeps Chrome from evicting the database when the disk gets full.
+- The `unlimitedStorage` permission keeps the browser from evicting the database when the disk gets full.
 - No page HTML, DOM snapshots or copies of articles are ever stored: only the highlighted words, a little context around them and some page metadata. When the last highlight of a page is deleted, the page record is deleted as well.
-- Small preferences, such as the last color you used, are kept in `chrome.storage`.
+- Small preferences, such as the last color you used, are kept in the extension's `storage` area.
 
 ### What websites can see
 
 A website can't read your highlights, notes or groups. While one of its pages is open, its scripts can see which passages of that page are highlighted and in which colors, because the CSS Custom Highlight API shares highlights with the page, and it can tell that the extension is installed. The full privacy policy is in [PRIVACY.md](PRIVACY.md).
 
-Web pages are treated as untrusted. The service worker checks that a page only asks about itself (using the address reported by Chrome, not the one claimed by the page), lets a page edit only the highlights of its own site, and sends a tab only the highlights of the page it is showing. Browsing, search, export and import are available only to the extension's own pages. Imported files are validated field by field, with `http(s)` addresses only and size limits.
+Web pages are treated as untrusted. The service worker checks that a page only asks about itself (using the address reported by the browser, not the one claimed by the page), lets a page edit only the highlights of its own site, and sends a tab only the highlights of the page it is showing. Browsing, search, export and import are available only to the extension's own pages. Imported files are validated field by field, with `http(s)` addresses only and size limits.
 
 An export looks like this:
 
@@ -225,9 +225,9 @@ Importing either *merges* into what you already have (pages matched by address, 
 | access to `http` and `https` sites | the color bar on every page, and restoring highlights |
 | `scripting` | injecting the heavier script only where it's needed |
 | `storage`, `unlimitedStorage` | preferences, and keeping your highlights safe from eviction |
-| `sidePanel` | the knowledge manager |
+| `sidePanel` (Chrome) | the knowledge manager; Firefox shows it as a sidebar, which needs no permission |
 | `contextMenus` | the right-click actions |
-| `favicon` | site icons in the side panel, from Chrome's own cache |
+| `favicon` (Chrome) | site icons in the side panel, from Chrome's own cache; Firefox offers extensions no such cache, so it shows a globe |
 
 ## Why not just store XPath?
 
@@ -260,22 +260,27 @@ Because remembering where an annotation belongs doesn't require owning a copy of
 ## Known limitations
 
 - Only the page itself: text inside iframes, and inside web components that keep their content in a shadow root, can't be highlighted.
-- Pages where Chrome doesn't allow extensions (the Chrome Web Store, `chrome://` pages, the built-in PDF viewer) can't be highlighted either.
+- Pages where the browser doesn't allow extensions can't be highlighted either: in Chrome the Chrome Web Store, `chrome://` pages and the built-in PDF viewer; in Firefox `addons.mozilla.org`, `about:` pages, Reader View and the built-in PDF viewer.
 - After disabling and re-enabling the extension, reload the tabs that were already open. Installing, updating and reloading it are handled automatically.
-- Chrome can't show different right-click entries for different elements, so the extension tells it which highlight is under the pointer as you move over the page. If the highlight actions are ever missing from the right-click menu, click the highlight instead.
+- The browser can't show different right-click entries for different elements, so the extension tells it which highlight is under the pointer as you move over the page. If the highlight actions are ever missing from the right-click menu, click the highlight instead.
+- In Firefox, the extension doesn't run in private windows unless you allow it in its settings in `about:addons`. If you do, highlights made there are stored like any other.
+- Firefox lets you withdraw the extension's access to websites. Without it pages can't be highlighted and saved highlights don't show; the sidebar then offers to allow access again.
 
 ---
 
 ## Development
 
-Requirements: Chrome 123 or later, and Node 24.15+ (or 22.22+) for the test tools. Building alone works from Node 18.
+Requirements: Chrome 123 or later or Firefox 140 or later, and Node 24.15+ (or 22.22+) for the test tools. Building alone works from Node 22.18, which runs the build's TypeScript helper directly.
 
 ```bash
 npm install
-npm run build      # production build into dist/
-npm run dev        # readable build with source maps, rebuilt on every change
-npm run package    # production build zipped into release/, ready for a GitHub release or the Web Store
+npm run build          # production build into dist/ (Chrome)
+npm run build:firefox  # production build into dist-firefox/ (Firefox)
+npm run dev            # readable build with source maps, rebuilt on every change (dev:firefox for Firefox)
+npm run package        # both builds and the source code zipped into release/, for a GitHub release and the stores
 ```
+
+Both builds come from the same code. `static/manifest.json` is the Chrome manifest; the Firefox one is derived from it in `scripts/manifest.ts` (an event page instead of a service worker, a sidebar instead of the side panel, the add-on ID), and the few browser-specific branches in `src/` test `__BROWSER__`, fixed at build time.
 
 To load it, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick the `dist/` folder. After a rebuild, press the reload icon on the extension's card: tabs that are already open pick up the new version without being reloaded.
 
@@ -285,17 +290,32 @@ If the repository lives in WSL and Chrome runs on Windows, pick `\\wsl.localhost
 JAH_OUTDIR=/mnt/c/Users/<you>/jah-dist npm run dev
 ```
 
+To load the Firefox build, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `dist-firefox/manifest.json`; Firefox removes it when it closes. `npx web-ext run --source-dir dist-firefox` starts a fresh Firefox with it instead, and `npm run lint:firefox` checks it with Mozilla's linter.
+
+### Building for Firefox Add-ons reviewers
+
+The Firefox package is bundled and minified, so addons.mozilla.org receives the source code with it (`release/just-another-highlighter-<version>-source.zip`, made by `npm run package`). To rebuild the package from that source, on any system with Node 24 and npm:
+
+```bash
+npm ci
+npm run build-for-amo
+```
+
+The extension is then in `dist-firefox/`, identical to the files in `release/just-another-highlighter-<version>-firefox.zip`. The build needs nothing but esbuild, pinned in `package-lock.json`, and no network access.
+
 ### Tests
 
 ```bash
 npm run typecheck
 npm test           # unit tests
 npm run test:e2e   # builds dist/ and drives a real Chromium with the extension loaded
+npm run test:e2e:firefox  # builds dist-firefox/ and runs the main paths in Firefox
 ```
 
 - **Unit tests** (vitest, jsdom, fake-indexeddb) cover URL normalization, the text map, the resolver against realistic page changes (inserted content, repeated phrases, removed paragraphs, edited or rewritten quotes, identical passages, hostile stored data), the repository, import and export, and the lifecycle of the boot script.
 - **End-to-end tests** (Playwright) load `dist/` into Chromium and use local fixture pages served under fake hostnames. They cover the color bar, restoring highlights after the page changed, repeated phrases, the in-page editor, the side panel, export and import, extension updates, late and collapsed content, and the isolation between sites. They need Playwright's Chromium: `npx playwright install chromium`.
 - Playwright can't use Chrome's native right-click menu or extension shortcuts, can't open the real side panel and keeps pages from being prerendered, so those paths are tested one level below the UI.
+- **Firefox end-to-end tests** run the main paths (color bar, restoring after a reload and after Firefox unloads the event page, the in-page editor, the sidebar, the isolation between sites) in Playwright's Firefox. Playwright can only load extensions into Chromium, so the tests install `dist-firefox/` and evaluate code in it through Firefox's remote debugging protocol, like `web-ext run`. They need Playwright's Firefox: `npx playwright install firefox`.
 
 ### How the pieces fit
 
@@ -320,8 +340,10 @@ static/                 manifest, side panel HTML/CSS and icons (copied into dis
 src/shared/             types, message protocol, limits, URL identity, colors, search folding
 src/content/boot.ts     runs on every page: page identity, one lookup, color bar
 src/content/main.ts     injected on demand: text map, anchoring, resolver, renderer, editor
-src/background/         service worker: IndexedDB, message router, context menu, injection
+src/background/         service worker (an event page in Firefox): IndexedDB, message router, context menu, injection
 src/sidepanel/          knowledge manager: sites → pages → highlights, groups, search, export
 test/unit/              vitest + jsdom + fake-indexeddb
 test/e2e/               Playwright tests against local fixture pages
+test/e2e-firefox/       the same kind of tests in Firefox
+scripts/manifest.ts     the Firefox manifest, derived from the Chrome one
 ```

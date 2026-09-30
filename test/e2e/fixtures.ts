@@ -210,7 +210,8 @@ export async function sendFromTab(sw: ExtensionContext, tabId: number, message: 
     async ({ id, payload }) => {
       const [injection] = await chrome.scripting.executeScript({
         target: { tabId: id },
-        func: (m: unknown) => chrome.runtime.sendMessage(m),
+        // Firefox's `chrome` is callback-based: use its `browser` where there is one.
+        func: (m: unknown) => ((globalThis as { browser?: typeof chrome }).browser ?? chrome).runtime.sendMessage(m),
         args: [payload],
       });
       return injection.result;
@@ -227,7 +228,8 @@ export async function recordTabMessages(sw: ExtensionContext, tabId: number): Pr
       func: () => {
         const scope = globalThis as unknown as { __seen?: string[] };
         scope.__seen = [];
-        chrome.runtime.onMessage.addListener((message: { type?: string }) => void scope.__seen!.push(String(message?.type)));
+        const api = (globalThis as { browser?: typeof chrome }).browser ?? chrome;
+        api.runtime.onMessage.addListener((message: { type?: string }) => void scope.__seen!.push(String(message?.type)));
       },
     });
   }, tabId);

@@ -1,4 +1,5 @@
 import { el } from '../shared/dom';
+import { ext } from '../shared/ext';
 import { icon } from '../shared/icons';
 import {
   request,
@@ -9,8 +10,9 @@ import {
   type TabStatusEvent,
 } from '../shared/messages';
 import type { GroupSummary } from '../shared/types';
+import { offerSiteAccess } from './access';
 import { highlightCard, type EditorState } from './card';
-import { errorMessage, faviconUrl, plural } from './format';
+import { errorMessage, plural } from './format';
 import {
   emptyState,
   groupView,
@@ -18,6 +20,7 @@ import {
   pageView,
   recentView,
   searchView,
+  siteIcon,
   siteView,
   sitesView,
   type Route,
@@ -49,7 +52,7 @@ const fileInput = $<HTMLInputElement>('file');
 const toastElement = $<HTMLElement>('toast');
 const confirmBar = $<HTMLElement>('confirm');
 
-const windowReady = chrome.windows.getCurrent().then((window) => {
+const windowReady = ext.windows.getCurrent().then((window) => {
   state.windowId = window.id;
 });
 
@@ -141,10 +144,10 @@ function forThisWindow(request: { windowId?: number }): boolean {
 /** A request stored while this panel was still opening. Returns whether one was applied. */
 async function applyStoredFocus(): Promise<boolean> {
   await windowReady;
-  const { panelFocus } = await chrome.storage.session.get('panelFocus');
+  const { panelFocus } = await ext.storage.session.get('panelFocus');
   const stored = panelFocus as PanelFocusRequest | undefined;
   if (!stored || !forThisWindow(stored)) return false;
-  await chrome.storage.session.remove('panelFocus');
+  await ext.storage.session.remove('panelFocus');
   if (Date.now() - stored.at > FOCUS_TTL) return false;
   await applyFocus(stored);
   return true;
@@ -153,7 +156,7 @@ async function applyStoredFocus(): Promise<boolean> {
 // ── "This page" section ────────────────────────────────────────────────────
 
 async function refreshCurrent(): Promise<void> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
   try {
     state.current = tab?.id !== undefined ? await request('kb:tab-page', { tabId: tab.id }) : null;
   } catch {
@@ -184,7 +187,7 @@ function renderCurrentSection(): void {
   const header = el(
     'button',
     { class: 'current-header', type: 'button', 'aria-expanded': String(expanded), disabled: count === 0 },
-    el('img', { class: 'favicon', src: faviconUrl(identity.locationUrl), alt: '', width: 16, height: 16 }),
+    siteIcon(identity.locationUrl),
     el(
       'span',
       { class: 'current-title' },
@@ -385,25 +388,27 @@ function isPanelFocus(message: unknown): message is PanelFocusEvent {
 }
 
 // Never answer: requests are for the service worker, this page only listens to its broadcasts.
-chrome.runtime.onMessage.addListener((message: unknown, sender) => {
-  if (sender.id !== chrome.runtime.id || sender.tab) return; // content scripts don't get a say here
+ext.runtime.onMessage.addListener((message: unknown, sender) => {
+  if (sender.id !== ext.runtime.id || sender.tab) return; // content scripts don't get a say here
   if (isKbChanged(message)) scheduleRefresh();
   else if (isTabStatus(message)) scheduleCurrent();
   else if (isPanelFocus(message)) {
     void windowReady.then(() => {
       if (!forThisWindow(message)) return;
-      void chrome.storage.session.remove('panelFocus');
+      void ext.storage.session.remove('panelFocus');
       void applyFocus(message);
     });
   }
 });
 
-chrome.tabs.onActivated.addListener((info) => {
+ext.tabs.onActivated.addListener((info) => {
   if (info.windowId === state.windowId) void refreshCurrent();
 });
-chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
+ext.tabs.onUpdated.addListener((_tabId, info, tab) => {
   if (tab.active && tab.windowId === state.windowId && (info.status === 'complete' || info.url)) scheduleCurrent();
 });
+
+if (__BROWSER__ === 'firefox') offerSiteAccess($<HTMLElement>('access'));
 
 void applyStoredFocus().then((applied) => {
   if (!applied) void render();

@@ -36,8 +36,10 @@ export function highlightStylesheet(): string {
     (color) => `::highlight(${highlightName(color.id)}) { background-color: ${color.fill}; }`,
   );
   rules.push(`::highlight(${FOCUS_HIGHLIGHT}) { background-color: rgb(255 146 43 / 0.8); }`);
+  // Firefox ignores text decorations in `::highlight()` before 146: darken the fill as well.
+  const firefoxFill = __BROWSER__ === 'firefox' ? ' background-color: rgb(0 0 0 / 0.12);' : '';
   rules.push(
-    `::highlight(${ACTIVE_HIGHLIGHT}) { text-decoration-line: underline; text-decoration-thickness: 2px; }`,
+    `::highlight(${ACTIVE_HIGHLIGHT}) { text-decoration-line: underline; text-decoration-thickness: 2px;${firefoxFill} }`,
   );
   return rules.join('\n');
 }

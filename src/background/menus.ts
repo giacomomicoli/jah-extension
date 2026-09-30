@@ -1,4 +1,5 @@
 import { COLORS, isColorId, type ColorId } from '../shared/colors';
+import { ext } from '../shared/ext';
 
 export const MENU = {
   highlight: 'jah-highlight',
@@ -18,37 +19,27 @@ export type MenuCommand =
   | { kind: 'group' }
   | { kind: 'delete' };
 
-export function createMenus(): void {
-  chrome.contextMenus.removeAll(() => {
-    const create = (properties: chrome.contextMenus.CreateProperties) =>
-      chrome.contextMenus.create(properties, () => void chrome.runtime.lastError);
+export async function createMenus(): Promise<void> {
+  await ext.contextMenus.removeAll();
+  const create = (properties: chrome.contextMenus.CreateProperties) =>
+    ext.contextMenus.create(properties, () => void ext.runtime.lastError);
 
-    create({ id: MENU.highlight, title: 'Highlight', contexts: ['selection'] });
-    for (const color of COLORS) {
-      create({ id: `${MENU.highlight}:${color.id}`, parentId: MENU.highlight, title: color.label, contexts: ['selection'] });
-    }
-    create({ id: MENU.recolor, title: 'Change highlight color', contexts: ['all'], visible: false });
-    for (const color of COLORS) {
-      create({ id: `${MENU.recolor}:${color.id}`, parentId: MENU.recolor, title: color.label, contexts: ['all'] });
-    }
-    create({ id: MENU.note, title: 'Edit highlight note…', contexts: ['all'], visible: false });
-    create({ id: MENU.group, title: 'Move highlight to group…', contexts: ['all'], visible: false });
-    create({ id: MENU.remove, title: 'Delete highlight', contexts: ['all'], visible: false });
-  });
+  create({ id: MENU.highlight, title: 'Highlight', contexts: ['selection'] });
+  for (const color of COLORS) {
+    create({ id: `${MENU.highlight}:${color.id}`, parentId: MENU.highlight, title: color.label, contexts: ['selection'] });
+  }
+  create({ id: MENU.recolor, title: 'Change highlight color', contexts: ['all'], visible: false });
+  for (const color of COLORS) {
+    create({ id: `${MENU.recolor}:${color.id}`, parentId: MENU.recolor, title: color.label, contexts: ['all'] });
+  }
+  create({ id: MENU.note, title: 'Edit highlight note…', contexts: ['all'], visible: false });
+  create({ id: MENU.group, title: 'Move highlight to group…', contexts: ['all'], visible: false });
+  create({ id: MENU.remove, title: 'Delete highlight', contexts: ['all'], visible: false });
 }
 
-export function setHighlightItemsVisible(visible: boolean): Promise<void> {
-  return Promise.all(
-    HIGHLIGHT_ITEMS.map(
-      (id) =>
-        new Promise<void>((resolve) => {
-          chrome.contextMenus.update(id, { visible }, () => {
-            void chrome.runtime.lastError;
-            resolve();
-          });
-        }),
-    ),
-  ).then(() => undefined);
+export async function setHighlightItemsVisible(visible: boolean): Promise<void> {
+  // Items are missing only while the menus are being recreated.
+  await Promise.all(HIGHLIGHT_ITEMS.map((id) => ext.contextMenus.update(id, { visible }).catch(() => undefined)));
 }
 
 export function parseMenuCommand(menuItemId: string | number): MenuCommand | null {

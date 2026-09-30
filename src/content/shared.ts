@@ -1,4 +1,5 @@
 import type { ColorId } from '../shared/colors';
+import { ext } from '../shared/ext';
 import type { Highlight, Page, PageIdentity } from '../shared/types';
 
 /** API of the lazily injected main script. */
@@ -43,7 +44,7 @@ export function jah(): JahGlobal {
 /** False once the extension was reloaded or removed and this script became orphaned. */
 export function runtimeAlive(): boolean {
   try {
-    return !!chrome.runtime?.id;
+    return !!ext.runtime?.id;
   } catch {
     return false;
   }

@@ -17,9 +17,14 @@ export const palette = [
   'M12 7.5h.01',
   'M16.5 10.5h.01',
 ] as const;
+export const globe = [
+  'M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20Z',
+  'M2 12h20',
+  'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z',
+] as const;
 export const alert = ['M12 9v4', 'M12 17h.01', 'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z'] as const;
 
-const ICONS = { pencil, close, trash, folder, check, plus, chevronRight, chevronDown, back, external, palette, alert };
+const ICONS = { pencil, close, trash, folder, check, plus, chevronRight, chevronDown, back, external, palette, globe, alert };
 
 export type IconName = keyof typeof ICONS;
 

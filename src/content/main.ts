@@ -3,6 +3,7 @@
  * creates one. Owns the text map, the anchor resolver, the renderer and the editor.
  */
 import type { ColorId } from '../shared/colors';
+import { ext } from '../shared/ext';
 import {
   TAKEOVER_EVENT,
   request,
@@ -285,7 +286,7 @@ function initialize(): void {
     generation++;
     for (const cleanup of cleanups.splice(0)) cleanup();
     try {
-      chrome.runtime.onMessage.removeListener(onMessage);
+      ext.runtime.onMessage.removeListener(onMessage);
     } catch {
       // Orphaned context.
     }
@@ -470,7 +471,7 @@ function initialize(): void {
         return;
     }
   }
-  chrome.runtime.onMessage.addListener(onMessage);
+  ext.runtime.onMessage.addListener(onMessage);
 }
 
 /** Text without whitespace or invisible characters, for cheap "did this range change?" checks. */

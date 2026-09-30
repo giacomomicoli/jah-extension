@@ -31,6 +31,7 @@ export async function sitesView(env: ViewEnv): Promise<Node> {
   for (const site of sites) {
     const row = listRow({
       favicon: faviconUrl(site.sampleUrl),
+      icon: 'globe',
       title: site.site,
       subtitle: `${plural(site.pageCount, 'page')} · ${plural(site.highlightCount, 'highlight')}`,
       side: timeAgo(site.updatedAt),
@@ -87,7 +88,7 @@ export async function recentView(env: ViewEnv): Promise<Node> {
 export async function siteView(site: string, env: ViewEnv): Promise<Node> {
   const { pages } = await request('kb:pages', { site });
   const fragment = document.createDocumentFragment();
-  fragment.append(viewHeader(env, { title: site, subtitle: plural(pages.length, 'page'), favicon: pages[0] && faviconUrl(pages[0].url) }));
+  fragment.append(viewHeader(env, { title: site, subtitle: plural(pages.length, 'page'), favicon: pages[0] && faviconUrl(pages[0].url), icon: 'globe' }));
   if (!pages.length) {
     fragment.append(emptyState('Nothing left here', 'Every highlight of this site was deleted.'));
     return fragment;
@@ -129,6 +130,7 @@ export async function pageView(pageId: string, env: ViewEnv): Promise<Node> {
       title: page.title,
       subtitle: `${displayUrl(page.url)} · ${plural(highlights.length, 'highlight')}`,
       favicon: faviconUrl(page.url),
+      icon: 'globe',
       actions: [open, remove],
     }),
   );
@@ -205,6 +207,14 @@ function cardList(items: HighlightWithPage[], env: ViewEnv, terms?: string[]): H
   const list = el('div', { class: 'cards' });
   for (const { highlight, page } of items) list.append(highlightCard(highlight, { page, terms }, env));
   return list;
+}
+
+/** The site's favicon where the browser offers one, a globe otherwise. */
+export function siteIcon(pageUrl: string): HTMLElement {
+  const favicon = faviconUrl(pageUrl);
+  return favicon
+    ? el('img', { class: 'favicon', src: favicon, alt: '', width: 16, height: 16 })
+    : el('span', { class: 'row-icon' }, icon('globe'));
 }
 
 function listRow(options: {

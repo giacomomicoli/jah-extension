@@ -2,18 +2,24 @@
   "name": "just-another-highlighter",
   "version": "1.0.2",
   "private": true,
+  "license": "MIT",
   "type": "module",
-  "description": "Chrome extension: persistent text-anchored highlights and a lightweight knowledge manager.",
+  "description": "Chrome and Firefox extension: persistent text-anchored highlights and a lightweight knowledge manager.",
   "scripts": {
     "build": "node build.mjs",
     "build:dev": "node build.mjs --dev",
+    "build:firefox": "node build.mjs --browser=firefox",
+    "build-for-amo": "node build.mjs --browser=firefox",
     "dev": "node build.mjs --watch",
+    "dev:firefox": "node build.mjs --watch --browser=firefox",
+    "lint:firefox": "npx --yes web-ext@10.7.0 lint --source-dir dist-firefox",
     "package": "bash scripts/package.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "node build.mjs --dev && playwright test",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "test:e2e:firefox": "node build.mjs --dev --browser=firefox && playwright test -c playwright.firefox.config.ts",
+    "check": "npm run typecheck && npm run test && npm run build && npm run build:firefox && npm run lint:firefox"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1",

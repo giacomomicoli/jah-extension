@@ -2,6 +2,18 @@
 
 All notable changes to this project are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Firefox support (Firefox 140 or later, desktop). The knowledge manager opens in Firefox's sidebar, from the toolbar button or its own keyboard shortcut. In the sidebar, sites show a globe instead of their icon, because Firefox offers extensions no favicon service. If you withdraw the extension's access to websites, the sidebar offers to allow it again.
+- MIT license.
+
+### Changed
+
+- The privacy policy covers Firefox: private windows, withdrawing access to websites, and which permissions each browser uses.
+- `npm run package` builds both browsers and writes a Chrome zip, a Firefox zip and a source zip for addons.mozilla.org, and refuses to run with uncommitted changes.
+
 ## [1.0.2] - 2026-09-26
 
 ### Security

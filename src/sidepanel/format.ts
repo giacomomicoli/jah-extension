@@ -1,3 +1,5 @@
+import { ext } from '../shared/ext';
+
 const relative = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['year', 365 * 24 * 3600_000],
@@ -41,9 +43,10 @@ export function displayUrl(url: string): string {
   }
 }
 
-/** Chrome's favicon cache (needs the "favicon" permission). */
-export function faviconUrl(pageUrl: string, size = 32): string {
-  const url = new URL(chrome.runtime.getURL('/_favicon/'));
+/** Chrome's favicon cache (needs the "favicon" permission). Firefox offers extensions none. */
+export function faviconUrl(pageUrl: string, size = 32): string | undefined {
+  if (__BROWSER__ === 'firefox') return undefined;
+  const url = new URL(ext.runtime.getURL('/_favicon/'));
   url.searchParams.set('pageUrl', pageUrl);
   url.searchParams.set('size', String(size));
   return url.href;

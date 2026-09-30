@@ -2,7 +2,7 @@
 
 Just Another Highlighter is a browser extension for highlighting text on web pages and finding those highlights again later. This page explains what it stores, where, and who can see it.
 
-Last updated: 26 September 2026.
+Last updated: 30 September 2026.
 
 ## What the extension stores
 
@@ -17,13 +17,13 @@ It also remembers the last color you used, and keeps some short-lived bookkeepin
 
 ## Where it is stored
 
-Everything stays in your browser, in storage that belongs to the extension on your device. The extension has no server and sends nothing anywhere: no analytics, no advertising, no data sharing or selling. It does not use Chrome sync, so highlights are not copied to your other devices.
+Everything stays in your browser, in storage that belongs to the extension on your device. The extension has no server and sends nothing anywhere: no analytics, no advertising, no data sharing or selling. It does not use the browser's sync (Chrome sync or Firefox Sync), so highlights are not copied to your other devices.
 
 ## What websites can see
 
 - A website cannot read the extension's storage: your highlights, notes and groups, and your highlights on other websites, stay out of its reach.
 - While one of its pages is open, a website's scripts can see which passages of that page are highlighted, and in which colors. Highlights are drawn with the browser's CSS Custom Highlight API, which shares them with the page. The website does not see your notes or groups.
-- Notes and new group names are always typed in the extension's side panel, which websites cannot observe. Text typed on a web page could be read by that page.
+- Notes and new group names are always typed in the extension's side panel (the sidebar in Firefox), which websites cannot observe. Text typed on a web page could be read by that page.
 - A website can tell that the extension is installed, for example when the color bar or a highlight appears.
 
 ## Your choices
@@ -31,13 +31,16 @@ Everything stays in your browser, in storage that belongs to the extension on yo
 - You can delete any highlight, page or group, from the page or from the side panel.
 - You can export all your data as a JSON file and import it again.
 - Uninstalling the extension deletes all of its data from your browser.
+- In Firefox, the extension does not run in private windows unless you allow it in its settings. If you do, highlights made in private windows are stored like any other, and remain after the window closes.
+- In Firefox, you can withdraw the extension's access to websites at any time. It then can't see or highlight pages.
 
 ## Permissions
 
 - Access to `http` and `https` sites: to show the color bar on any page and to restore highlights when you come back.
 - `scripting`: to load the heavier part of the extension only on pages that have highlights.
 - `storage` and `unlimitedStorage`: to keep your highlights and preferences, and to stop the browser from deleting them when the disk is full.
-- `sidePanel`, `contextMenus`, `favicon`: for the side panel, the right-click actions and the site icons (taken from the browser's own cache).
+- `contextMenus`: for the right-click actions.
+- In Chrome only, `sidePanel` and `favicon`: for the side panel and the site icons (taken from Chrome's own cache). Firefox shows the same panel as a sidebar, which needs no permission, and shows no site icons.
 
 ## Contact
 

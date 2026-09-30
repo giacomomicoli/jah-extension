@@ -1,4 +1,5 @@
 import type { ColorId } from './colors';
+import { ext } from './ext';
 import type {
   ExportFile,
   Group,
@@ -70,7 +71,7 @@ export async function request<T extends RequestType>(
   type: T,
   payload: RequestMap[T]['req'],
 ): Promise<ResponseOf<T>> {
-  const response = (await chrome.runtime.sendMessage({ ...payload, type })) as
+  const response = (await ext.runtime.sendMessage({ ...payload, type })) as
     | Envelope<ResponseOf<T>>
     | undefined;
   if (!response) throw new Error(`No response to ${type}`);

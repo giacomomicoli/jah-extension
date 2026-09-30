@@ -5,6 +5,7 @@
  * service worker injects only when this page has highlights or the user creates one.
  */
 import type { ColorId } from '../shared/colors';
+import { ext } from '../shared/ext';
 import { TAKEOVER_EVENT, request, type KbChange, type TabMessage } from '../shared/messages';
 import type { PageIdentity } from '../shared/types';
 import { computeIdentity } from './identity';
@@ -62,7 +63,7 @@ function bootstrap(): void {
     for (const cleanup of cleanups.splice(0)) cleanup();
     toolbar.hide();
     try {
-      chrome.runtime.onMessage.removeListener(onMessage);
+      ext.runtime.onMessage.removeListener(onMessage);
     } catch {
       // Orphaned context: nothing left to unregister.
     }
@@ -203,7 +204,7 @@ function bootstrap(): void {
   on(window, 'popstate', onNavigation);
   on(window, 'hashchange', onNavigation);
 
-  chrome.runtime.onMessage.addListener(onMessage);
+  ext.runtime.onMessage.addListener(onMessage);
   // A prerendered page is not shown yet: look up its highlights once it is activated.
   if ((document as Document & { prerendering?: boolean }).prerendering) {
     on(document, 'prerenderingchange', () => void lookup(), { once: true });
